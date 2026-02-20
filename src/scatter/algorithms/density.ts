@@ -12,6 +12,8 @@ import { poissonDisk } from './poisson.js'
 export interface DensityOptions {
     region: Region
     targetCount: number
+    /** Minimum distance between points (default 3) */
+    minDistance?: number
     /** Constraints array — looks for density_falloff specifically */
     constraints?: Constraint[]
     /** RNG for reproducibility (default Math.random) */
@@ -38,10 +40,11 @@ export function densityFunction(options: DensityOptions): Array<[number, number]
     // Find the density_falloff constraint (if any)
     const falloff = constraints.find(c => c.type === 'density_falloff')
 
-    // Oversample at 3x with tight spacing (SpatialDistributor line 487-488)
+    // Oversample at 3x using the layer's min distance for proper spacing
+    const minDist = options.minDistance ?? 3
     const candidates = poissonDisk({
         region,
-        minDistance: 3,
+        minDistance: minDist,
         maxPoints: targetCount * 3,
         rng,
     })

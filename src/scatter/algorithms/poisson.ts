@@ -46,6 +46,12 @@ export function poissonDisk(options: PoissonOptions): Array<[number, number]> {
 
     const raw: number[][] = pds.fill()
 
+    // Shuffle so we don't always pick from the same corner when capping
+    for (let i = raw.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1))
+        ;[raw[i], raw[j]] = [raw[j], raw[i]]
+    }
+
     // Transform from local [0, width] x [0, depth] to world coordinates
     // and filter to actual region shape
     const points: Array<[number, number]> = []

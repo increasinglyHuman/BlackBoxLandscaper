@@ -6,11 +6,13 @@
  */
 
 import type { Region } from '../../types/index.js'
-import { getRegionBounds, isPointInRegion } from '../RegionHelper.js'
+import { getRegionBounds, isPointInRegion, getRegionArea } from '../RegionHelper.js'
 
 export interface GridOptions {
     region: Region
     spacing: number
+    /** Maximum number of points to return (default: unlimited) */
+    maxPoints?: number
     /** Jitter factor as fraction of spacing (default 0.2 = ±10%) */
     jitter?: number
     /** RNG for reproducibility (default Math.random) */
@@ -21,12 +23,23 @@ export interface GridOptions {
  * Generate grid-distributed points within a region.
  *
  * Regular grid at `spacing` intervals, each point offset by random jitter.
+ * If maxPoints is specified, spacing is auto-increased to fit approximately
+ * that many points in the region area.
  * Default jitter = 0.2 (same as SpatialDistributor).
  */
 export function grid(options: GridOptions): Array<[number, number]> {
-    const { region, spacing } = options
+    const { region } = options
     const jitter = options.jitter ?? 0.2
     const rng = options.rng ?? Math.random
+    const maxPoints = options.maxPoints ?? Infinity
+
+    // If maxPoints is set, compute spacing to approximate that count
+    let spacing = options.spacing
+    if (maxPoints < Infinity) {
+        const area = getRegionArea(region)
+        const spacingFromCount = Math.sqrt(area / maxPoints)
+        spacing = Math.max(spacing, spacingFromCount)
+    }
 
     const bounds = getRegionBounds(region)
     const points: Array<[number, number]> = []
@@ -40,6 +53,15 @@ export function grid(options: GridOptions): Array<[number, number]> {
                 points.push([jx, jz])
             }
         }
+    }
+
+    // Shuffle and cap to maxPoints
+    if (points.length > maxPoints) {
+        for (let i = points.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1))
+            ;[points[i], points[j]] = [points[j], points[i]]
+        }
+        points.length = maxPoints
     }
 
     return points

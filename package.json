@@ -18,7 +18,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "build:lib": "tsc && vite build --mode lib",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
@@ -52,6 +53,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/increasinglyHuman/Landscaper.git"
+    "url": "https://github.com/increasinglyHuman/BlackBoxLandscaper.git"
   }
 }

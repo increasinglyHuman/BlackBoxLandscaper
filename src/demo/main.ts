@@ -12,12 +12,53 @@ import { EzTreeAdapter } from '../generators/EzTreeAdapter.js'
 import { BillboardGenerator } from '../generators/BillboardGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
 import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
+import { landscaperMatrix } from './landscaper-matrix.js'
 import type { DecorationLayer, DistributionAlgorithm } from '../types/index.js'
 import type { MeshGenerator } from '../generators/types.js'
 
 // ============================================================================
-// SCENE SETUP
+// SPLASH SCREEN
 // ============================================================================
+
+landscaperMatrix.init()
+landscaperMatrix.start()
+
+const welcomeScreen = document.getElementById('welcomeScreen')!
+const mainApp = document.getElementById('mainApp')!
+const welcomeStartBtn = document.getElementById('welcomeStartBtn')!
+
+let sceneInitialized = false
+
+welcomeStartBtn.addEventListener('click', () => {
+    mainApp.style.display = 'block'
+    mainApp.style.opacity = '0'
+
+    if (!sceneInitialized) {
+        sceneInitialized = true
+        initScene()
+    }
+
+    setTimeout(() => {
+        welcomeScreen.style.transition = 'opacity 1s ease-out'
+        welcomeScreen.style.opacity = '0'
+    }, 300)
+
+    setTimeout(() => {
+        mainApp.style.transition = 'opacity 0.8s ease-in'
+        mainApp.style.opacity = '1'
+    }, 800)
+
+    setTimeout(() => {
+        welcomeScreen.style.display = 'none'
+        landscaperMatrix.stop()
+    }, 2000)
+})
+
+// ============================================================================
+// SCENE INITIALIZATION (deferred until START)
+// ============================================================================
+
+function initScene(): void {
 
 const container = document.getElementById('canvas-container')!
 const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -30,7 +71,7 @@ renderer.toneMappingExposure = 1.8
 container.appendChild(renderer.domElement)
 
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x87ceeb) // Sky blue
+scene.background = new THREE.Color(0x87ceeb)
 scene.fog = new THREE.Fog(0x87ceeb, 100, 500)
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -53,7 +94,6 @@ const sunLight = new THREE.DirectionalLight(0xffeedd, 2.0)
 sunLight.position.set(50, 80, 30)
 sunLight.castShadow = true
 sunLight.shadow.mapSize.set(4096, 4096)
-// Shadow camera must cover the entire ground plane (256x256)
 sunLight.shadow.camera.left = -140
 sunLight.shadow.camera.right = 140
 sunLight.shadow.camera.top = 140
@@ -74,7 +114,6 @@ scene.add(fillLight)
 const groundGeo = new THREE.PlaneGeometry(256, 256, 64, 64)
 groundGeo.rotateX(-Math.PI / 2)
 
-// Add subtle elevation variation
 const posAttr = groundGeo.getAttribute('position')
 for (let i = 0; i < posAttr.count; i++) {
     const x = posAttr.getX(i)
@@ -93,9 +132,8 @@ const ground = new THREE.Mesh(groundGeo, groundMat)
 ground.receiveShadow = true
 scene.add(ground)
 
-// Reference grid — 256x256, 16m divisions (each square = 16x16 meters)
 const gridHelper = new THREE.GridHelper(256, 16, 0x335533, 0x2a4a2a)
-gridHelper.position.y = 0.05 // Slightly above ground to avoid z-fighting
+gridHelper.position.y = 0.05
 gridHelper.material.opacity = 0.3
 gridHelper.material.transparent = true
 scene.add(gridHelper)
@@ -117,146 +155,146 @@ let treeCount = 0
 let totalTriangles = 0
 
 // ============================================================================
-// UI SETUP
+// UI ELEMENTS
 // ============================================================================
 
 const speciesSelect = document.getElementById('species-select') as HTMLSelectElement
-const countSelect = document.getElementById('count-select') as HTMLSelectElement
-const btnGenerate = document.getElementById('btn-generate') as HTMLButtonElement
+const algorithmSelect = document.getElementById('algorithm-select') as HTMLSelectElement
+const pergroupSlider = document.getElementById('pergroup-slider') as HTMLInputElement
+const populationSlider = document.getElementById('population-slider') as HTMLInputElement
+const pergroupValue = document.getElementById('pergroup-value')!
+const populationValue = document.getElementById('population-value')!
+const totalValue = document.getElementById('total-value')!
+const btnScatter = document.getElementById('btn-scatter') as HTMLButtonElement
 const btnClear = document.getElementById('btn-clear') as HTMLButtonElement
 const statTrees = document.getElementById('stat-trees')!
 const statTris = document.getElementById('stat-tris')!
 const statDraws = document.getElementById('stat-draws')!
+const speciesPreview = document.getElementById('species-preview')!
 
-// Populate species dropdown — only show ez-tree species for now
+// Populate species dropdown
 const allSpecies = registry.getAll()
 const ezTreeSpecies = allSpecies.filter(s => s.generator === 'ez-tree')
 
 for (const species of ezTreeSpecies) {
     const option = document.createElement('option')
     option.value = species.id
-    option.textContent = `${species.displayName} (State ${species.opensimState})`
+    option.textContent = species.displayName
     speciesSelect.appendChild(option)
 }
 
-// Default to oak
 speciesSelect.value = 'oak'
 
 // ============================================================================
-// GENERATION
+// SLIDER WIRING
 // ============================================================================
 
-function generateTrees(): void {
-    // Clear previous trees so Generate replaces, not accumulates
-    clearScene()
+function updateTotalDisplay(): void {
+    const perGroup = parseInt(pergroupSlider.value)
+    const population = parseInt(populationSlider.value)
+    pergroupValue.textContent = String(perGroup)
+    populationValue.textContent = String(population)
+    totalValue.textContent = String(perGroup * population)
+}
 
+pergroupSlider.addEventListener('input', updateTotalDisplay)
+populationSlider.addEventListener('input', updateTotalDisplay)
+updateTotalDisplay()
+
+// ============================================================================
+// SPECIES PREVIEW — rotating ghost instance on selection change
+// ============================================================================
+
+let previewRenderer: THREE.WebGLRenderer | null = null
+let previewScene: THREE.Scene | null = null
+let previewCamera: THREE.PerspectiveCamera | null = null
+let previewAnimId: number | null = null
+
+function initPreview(): void {
+    previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    previewRenderer.setSize(speciesPreview.clientWidth, speciesPreview.clientHeight)
+    previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    previewRenderer.toneMapping = THREE.ACESFilmicToneMapping
+    previewRenderer.toneMappingExposure = 1.5
+    speciesPreview.innerHTML = ''
+    speciesPreview.appendChild(previewRenderer.domElement)
+
+    previewScene = new THREE.Scene()
+    previewCamera = new THREE.PerspectiveCamera(
+        40,
+        speciesPreview.clientWidth / speciesPreview.clientHeight,
+        0.1, 100
+    )
+
+    const ambient = new THREE.AmbientLight(0xaabbcc, 1.2)
+    previewScene.add(ambient)
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.5)
+    dirLight.position.set(5, 10, 5)
+    previewScene.add(dirLight)
+}
+
+function updatePreview(): void {
     const speciesId = speciesSelect.value
     const species = registry.getById(speciesId)
-    if (!species) {
-        console.warn(`Species not found: ${speciesId}`)
-        return
-    }
+    if (!species) return
 
     const generator = generators.get(species.generator)
-    if (!generator) {
-        console.warn(`Generator not available: ${species.generator}`)
-        return
+    if (!generator) return
+
+    if (!previewRenderer) initPreview()
+
+    // Clear previous preview objects (keep 2 lights)
+    while (previewScene!.children.length > 2) {
+        previewScene!.remove(previewScene!.children[2])
     }
 
-    const count = parseInt(countSelect.value) || 5
+    const result = generator.generate(species, 12345)
+    previewScene!.add(result.object)
 
-    console.log(`Generating ${count}x ${species.displayName} (${species.generator})...`)
-    const startTime = performance.now()
+    // Auto-frame: position camera to fit the tree
+    const box = new THREE.Box3().setFromObject(result.object)
+    const center = box.getCenter(new THREE.Vector3())
+    const size = box.getSize(new THREE.Vector3())
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const dist = maxDim * 1.5
 
-    // Spread proportional to count and species spacing
-    // Species spacing.max gives natural inter-tree distance
-    const spacing = species.spacing.max
-    const spread = Math.max(spacing * 2, Math.sqrt(count) * spacing)
+    previewCamera!.position.set(
+        center.x + dist * 0.6,
+        center.y + dist * 0.3,
+        center.z + dist * 0.6
+    )
+    previewCamera!.lookAt(center)
 
-    for (let i = 0; i < count; i++) {
-        const seed = Math.floor(Math.random() * 100000)
-        const result = generator.generate(species, seed)
-
-        const x = (Math.random() - 0.5) * spread
-        const z = (Math.random() - 0.5) * spread
-
-        // Sample ground height at position
-        const y = sampleGroundHeight(x, z)
-
-        result.object.position.set(x, y, z)
-
-        // Random Y rotation
-        result.object.rotation.y = Math.random() * Math.PI * 2
-
-        // Scale variation (±20%)
-        const scale = 0.8 + Math.random() * 0.4
-        result.object.scale.setScalar(scale)
-
-        // Enable shadows on all meshes
-        result.object.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                child.castShadow = true
-                child.receiveShadow = true
-            }
-        })
-
-        treeGroup.add(result.object)
-        treeCount++
-        totalTriangles += result.triangleCount
+    // Slow rotation
+    if (previewAnimId) cancelAnimationFrame(previewAnimId)
+    let angle = 0
+    function animatePreview(): void {
+        angle += 0.005
+        result.object.rotation.y = angle
+        previewRenderer!.render(previewScene!, previewCamera!)
+        previewAnimId = requestAnimationFrame(animatePreview)
     }
-
-    const elapsed = performance.now() - startTime
-    console.log(`Generated in ${elapsed.toFixed(1)}ms`)
-    updateStats()
+    animatePreview()
 }
 
-function clearScene(): void {
-    while (treeGroup.children.length > 0) {
-        const child = treeGroup.children[0]
-        treeGroup.remove(child)
-        child.traverse((obj) => {
-            if (obj instanceof THREE.Mesh) {
-                obj.geometry?.dispose()
-                if (Array.isArray(obj.material)) {
-                    obj.material.forEach(m => m.dispose())
-                } else {
-                    obj.material?.dispose()
-                }
-            }
-        })
-    }
-    treeCount = 0
-    totalTriangles = 0
-    updateStats()
-}
+speciesSelect.addEventListener('change', updatePreview)
+setTimeout(updatePreview, 100)
+
+// ============================================================================
+// SCATTER (unified: per-group × population)
+// ============================================================================
+
+const scatterSystem = new ScatterSystem()
+const terrain = new ProceduralTerrainSampler()
 
 function sampleGroundHeight(x: number, z: number): number {
     return Math.sin(x * 0.05) * Math.cos(z * 0.05) * 1.5
 }
 
-function updateStats(): void {
-    statTrees.textContent = String(treeCount)
-    statTris.textContent = totalTriangles.toLocaleString()
-    statDraws.textContent = String(renderer.info.render.calls)
-}
-
-// ============================================================================
-// SCATTER SYSTEM
-// ============================================================================
-
-const scatterSystem = new ScatterSystem()
-const terrain = new ProceduralTerrainSampler()
-const scatterGroup = new THREE.Group()
-scatterGroup.name = 'scatter'
-scene.add(scatterGroup)
-
-const algorithmSelect = document.getElementById('algorithm-select') as HTMLSelectElement
-const scatterCountSelect = document.getElementById('scatter-count') as HTMLSelectElement
-const btnScatter = document.getElementById('btn-scatter') as HTMLButtonElement
-
-function scatterForest(): void {
+function doScatter(): void {
     const algorithm = algorithmSelect.value as DistributionAlgorithm
-    const count = parseInt(scatterCountSelect.value) || 50
+    const perGroup = parseInt(pergroupSlider.value) || 1
+    const population = parseInt(populationSlider.value) || 25
     const speciesId = speciesSelect.value
 
     const species = registry.getById(speciesId)
@@ -265,7 +303,7 @@ function scatterForest(): void {
     const generator = generators.get(species.generator)
     if (!generator) return
 
-    console.log(`Scattering ${count}x ${species.displayName} (${algorithm})...`)
+    console.log(`Scattering ${population} × ${perGroup} = ${population * perGroup} ${species.displayName} (${algorithm})...`)
     const startTime = performance.now()
 
     const layer: DecorationLayer = {
@@ -275,7 +313,7 @@ function scatterForest(): void {
             { speciesId: species.id, weight: 1.0, scaleMin: 0.7, scaleMax: 1.3 },
         ],
         algorithm,
-        count,
+        count: population,
         minDistance: species.spacing.min,
         constraints: [
             { type: 'slope', maxDegrees: 30 },
@@ -297,43 +335,60 @@ function scatterForest(): void {
         seed: Math.floor(Math.random() * 100000),
     })
 
-    // Place individual trees at scattered positions
+    // For each scatter position, generate perGroup trees in a local cluster
     for (const inst of result.instances) {
-        const seed = Math.floor(Math.random() * 100000)
-        const output = generator.generate(species, seed)
+        for (let g = 0; g < perGroup; g++) {
+            const seed = Math.floor(Math.random() * 100000)
+            const output = generator.generate(species, seed)
 
-        output.object.position.set(inst.position.x, inst.position.y, inst.position.z)
-        output.object.rotation.set(inst.rotation.x, inst.rotation.y, inst.rotation.z)
-        output.object.scale.set(inst.scale.x, inst.scale.y, inst.scale.z)
-
-        output.object.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                child.castShadow = true
-                child.receiveShadow = true
+            // If perGroup > 1, offset subsequent trees in a small local cluster
+            let px = inst.position.x
+            let pz = inst.position.z
+            if (perGroup > 1 && g > 0) {
+                const clusterRadius = species.spacing.min * 0.4
+                const a = Math.random() * Math.PI * 2
+                const d = Math.random() * clusterRadius
+                px += Math.cos(a) * d
+                pz += Math.sin(a) * d
             }
-        })
+            const py = sampleGroundHeight(px, pz)
 
-        scatterGroup.add(output.object)
-        treeCount++
-        totalTriangles += output.triangleCount
+            output.object.position.set(px, py, pz)
+            output.object.rotation.set(
+                inst.rotation.x,
+                inst.rotation.y + (g > 0 ? Math.random() * Math.PI * 2 : 0),
+                inst.rotation.z
+            )
+
+            const groupScale = 0.85 + Math.random() * 0.3
+            output.object.scale.set(
+                inst.scale.x * groupScale,
+                inst.scale.y * groupScale,
+                inst.scale.z * groupScale
+            )
+
+            output.object.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.castShadow = true
+                    child.receiveShadow = true
+                }
+            })
+
+            treeGroup.add(output.object)
+            treeCount++
+            totalTriangles += output.triangleCount
+        }
     }
 
     const elapsed = performance.now() - startTime
-    console.log(`Scattered ${result.instances.length} trees in ${elapsed.toFixed(1)}ms (${algorithm})`)
+    console.log(`Scattered ${result.instances.length} × ${perGroup} = ${treeCount} trees in ${elapsed.toFixed(1)}ms (${algorithm})`)
     updateStats()
 }
 
-// ============================================================================
-// EVENT HANDLERS
-// ============================================================================
-
-btnGenerate.addEventListener('click', generateTrees)
-btnClear.addEventListener('click', () => {
-    clearScene()
-    // Also clear scatter group
-    while (scatterGroup.children.length > 0) {
-        const child = scatterGroup.children[0]
-        scatterGroup.remove(child)
+function clearForest(): void {
+    while (treeGroup.children.length > 0) {
+        const child = treeGroup.children[0]
+        treeGroup.remove(child)
         child.traverse((obj) => {
             if (obj instanceof THREE.Mesh) {
                 obj.geometry?.dispose()
@@ -345,13 +400,27 @@ btnClear.addEventListener('click', () => {
             }
         })
     }
-})
-btnScatter.addEventListener('click', scatterForest)
+    treeCount = 0
+    totalTriangles = 0
+    updateStats()
+}
 
-// Generate on Enter key
-speciesSelect.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') generateTrees()
+function updateStats(): void {
+    statTrees.textContent = String(treeCount)
+    statTris.textContent = totalTriangles.toLocaleString()
+    statDraws.textContent = String(renderer.info.render.calls)
+}
+
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
+
+btnScatter.addEventListener('click', () => {
+    clearForest()
+    doScatter()
 })
+
+btnClear.addEventListener('click', clearForest)
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight
@@ -372,11 +441,13 @@ function animate(): void {
 
 animate()
 
-// Generate an initial tree so the scene isn't empty
-generateTrees()
+// Generate an initial scatter so the scene isn't empty
+doScatter()
 
 console.log(`BlackBox Landscaper — Dev Harness`)
 console.log(`Species registered: ${registry.count}`)
 console.log(`  ez-tree: ${ezTreeSpecies.length}`)
 console.log(`  billboard: ${registry.getByGenerator('billboard').length}`)
 console.log(`  custom (palm/fern): ${registry.getByGenerator('palm').length + registry.getByGenerator('fern').length}`)
+
+} // end initScene

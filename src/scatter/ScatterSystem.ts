@@ -181,10 +181,10 @@ export class ScatterSystem {
                 return clustered({ region, totalCount: count, rng })
 
             case 'density':
-                return densityFunction({ region, targetCount: count, constraints, rng })
+                return densityFunction({ region, targetCount: count, minDistance, constraints, rng })
 
             case 'grid':
-                return grid({ region, spacing: minDistance, rng })
+                return grid({ region, spacing: minDistance, maxPoints: count, rng })
         }
     }
 
