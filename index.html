@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackBox Landscaper — Dev Harness</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #controls {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(20, 20, 40, 0.9);
+            border: 1px solid rgba(100, 200, 150, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            min-width: 260px;
+            backdrop-filter: blur(8px);
+        }
+        #controls h2 {
+            font-size: 14px;
+            color: #66cc88;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .control-group {
+            margin-bottom: 12px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        select, button {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid rgba(100, 200, 150, 0.2);
+            border-radius: 4px;
+            background: rgba(30, 30, 50, 0.8);
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        select:hover, button:hover {
+            border-color: rgba(100, 200, 150, 0.5);
+        }
+        button {
+            background: rgba(60, 140, 90, 0.3);
+            margin-top: 4px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: rgba(60, 140, 90, 0.5);
+        }
+        #stats {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(20, 20, 40, 0.85);
+            border: 1px solid rgba(100, 200, 150, 0.2);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            line-height: 1.6;
+        }
+        #stats span { color: #66cc88; }
+        #title-bar {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            text-align: right;
+            font-size: 11px;
+            color: #555;
+        }
+        #title-bar .name {
+            font-size: 16px;
+            color: #66cc88;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="controls">
+        <h2>Landscaper</h2>
+        <div class="control-group">
+            <label>Species</label>
+            <select id="species-select"></select>
+        </div>
+        <div class="control-group">
+            <label>Count</label>
+            <select id="count-select">
+                <option value="1">1 tree</option>
+                <option value="5" selected>5 trees</option>
+                <option value="10">10 trees</option>
+                <option value="25">25 trees</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <button id="btn-generate">Generate</button>
+            <button id="btn-clear">Clear Scene</button>
+        </div>
+        <h2 style="margin-top: 16px;">Scatter</h2>
+        <div class="control-group">
+            <label>Algorithm</label>
+            <select id="algorithm-select">
+                <option value="poisson" selected>Poisson Disk</option>
+                <option value="clustered">Clustered</option>
+                <option value="density">Density</option>
+                <option value="grid">Grid</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Scatter Count</label>
+            <select id="scatter-count">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <button id="btn-scatter">Scatter Forest</button>
+        </div>
+    </div>
+
+    <div id="stats">
+        Ground: 256×256m (grid = 16m)<br>
+        Trees: <span id="stat-trees">0</span><br>
+        Triangles: <span id="stat-tris">0</span><br>
+        Draw Calls: <span id="stat-draws">0</span>
+    </div>
+
+    <div id="title-bar">
+        <div class="name">BlackBox Landscaper</div>
+        Phase 2 — Scatter System
+    </div>
+
+    <script type="module" src="/src/demo/main.ts"></script>
+</body>
+</html>

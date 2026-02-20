@@ -1,0 +1,627 @@
+[
+  {
+    "id": "pine_1",
+    "displayName": "Pine 1",
+    "opensimState": 0,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "evergreen",
+      "bark": { "type": "pine", "tint": "0xffffff", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 1,
+        "angle": { "1": 45 },
+        "children": { "0": 100 },
+        "length": { "0": 30, "1": 8 },
+        "radius": { "0": 1.2, "1": 0.4 },
+        "taper": { "0": 0.8, "1": 0.5 },
+        "gnarliness": { "0": 0.1, "1": 0.1 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.003 }
+      },
+      "leaves": {
+        "type": "pine",
+        "billboard": "double",
+        "count": 30,
+        "size": 3,
+        "sizeVariance": 0.5,
+        "angle": 60,
+        "tint": "0x336633"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x448844", "summer": "0x336633", "autumn": "0x336633", "winter": "0x334433" },
+    "biomes": ["forest", "mountain", "temperate"],
+    "minElevation": 0,
+    "maxElevation": 800,
+    "preferredSlope": [0, 35],
+    "spacing": { "min": 4, "max": 12 }
+  },
+  {
+    "id": "oak",
+    "displayName": "Oak",
+    "opensimState": 1,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "oak", "tint": "0xffffff", "textureScale": { "x": 1, "y": 10 } },
+      "branch": {
+        "levels": 3,
+        "angle": { "1": 54, "2": 58, "3": 32 },
+        "children": { "0": 6, "1": 4, "2": 3 },
+        "length": { "0": 37, "1": 11, "2": 12, "3": 7 },
+        "radius": { "0": 1.4, "1": 0.9, "2": 0.7, "3": 1.2 },
+        "taper": { "0": 0.7, "1": 0.7, "2": 0.7, "3": 0.7 },
+        "gnarliness": { "0": 0.15, "1": 0.2, "2": 0.3, "3": 0.02 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.01 }
+      },
+      "leaves": {
+        "type": "oak",
+        "billboard": "double",
+        "count": 18,
+        "size": 2.5,
+        "sizeVariance": 0.7,
+        "angle": 42,
+        "tint": "0x448844"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x88cc44", "summer": "0x336622", "autumn": "0xcc6622", "winter": null },
+    "biomes": ["temperate", "forest", "suburban"],
+    "minElevation": 0,
+    "maxElevation": 500,
+    "preferredSlope": [0, 30],
+    "spacing": { "min": 5, "max": 15 }
+  },
+  {
+    "id": "tropical_bush_1",
+    "displayName": "Tropical Bush 1",
+    "opensimState": 2,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "oak", "tint": "0xffffff", "textureScale": { "x": 1, "y": 4 } },
+      "branch": {
+        "levels": 3,
+        "angle": { "1": 70, "2": 65, "3": 55 },
+        "children": { "0": 8, "1": 5, "2": 3 },
+        "length": { "0": 3, "1": 6, "2": 4, "3": 2 },
+        "radius": { "0": 0.6, "1": 0.4, "2": 0.3, "3": 0.2 },
+        "taper": { "0": 0.7, "1": 0.6, "2": 0.5, "3": 0.5 },
+        "gnarliness": { "0": 0.3, "1": 0.3, "2": 0.2, "3": 0.1 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.005 }
+      },
+      "leaves": {
+        "type": "ash",
+        "billboard": "double",
+        "count": 25,
+        "size": 2,
+        "sizeVariance": 0.6,
+        "angle": 55,
+        "tint": "0x339933"
+      }
+    },
+    "lodDistances": [0, 40, 120, 300],
+    "leafTint": { "spring": "0x44aa44", "summer": "0x339933", "autumn": "0x339933", "winter": "0x339933" },
+    "biomes": ["tropical", "beach", "jungle"],
+    "minElevation": 0,
+    "maxElevation": 200,
+    "preferredSlope": [0, 20],
+    "spacing": { "min": 2, "max": 6 }
+  },
+  {
+    "id": "palm_1",
+    "displayName": "Palm 1",
+    "opensimState": 3,
+    "generator": "palm",
+    "preset": {
+      "trunkHeight": 15,
+      "trunkCurve": 0.3,
+      "trunkRadius": 0.4,
+      "frondCount": 12,
+      "frondLength": 6,
+      "frondDroop": 0.4
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x44aa44", "summer": "0x338833", "autumn": "0x338833", "winter": "0x338833" },
+    "biomes": ["tropical", "beach", "coastal"],
+    "minElevation": 0,
+    "maxElevation": 100,
+    "preferredSlope": [0, 15],
+    "spacing": { "min": 4, "max": 10 }
+  },
+  {
+    "id": "dogwood",
+    "displayName": "Dogwood",
+    "opensimState": 4,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "oak", "tint": "0xdddddd", "textureScale": { "x": 1, "y": 6 } },
+      "branch": {
+        "levels": 3,
+        "angle": { "1": 60, "2": 55, "3": 40 },
+        "children": { "0": 5, "1": 4, "2": 3 },
+        "length": { "0": 15, "1": 8, "2": 6, "3": 3 },
+        "radius": { "0": 0.6, "1": 0.4, "2": 0.3, "3": 0.2 },
+        "taper": { "0": 0.7, "1": 0.7, "2": 0.6, "3": 0.5 },
+        "gnarliness": { "0": 0.1, "1": 0.15, "2": 0.2, "3": 0.05 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.008 }
+      },
+      "leaves": {
+        "type": "ash",
+        "billboard": "double",
+        "count": 15,
+        "size": 2,
+        "sizeVariance": 0.5,
+        "angle": 35,
+        "tint": "0xddffdd"
+      }
+    },
+    "lodDistances": [0, 50, 150, 400],
+    "leafTint": { "spring": "0xffddee", "summer": "0x55aa55", "autumn": "0xcc6633", "winter": null },
+    "biomes": ["temperate", "forest", "suburban"],
+    "minElevation": 0,
+    "maxElevation": 400,
+    "preferredSlope": [0, 25],
+    "spacing": { "min": 4, "max": 10 }
+  },
+  {
+    "id": "tropical_bush_2",
+    "displayName": "Tropical Bush 2",
+    "opensimState": 5,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "oak", "tint": "0xffffff", "textureScale": { "x": 1, "y": 4 } },
+      "branch": {
+        "levels": 3,
+        "angle": { "1": 75, "2": 60, "3": 50 },
+        "children": { "0": 10, "1": 6, "2": 3 },
+        "length": { "0": 2, "1": 5, "2": 3, "3": 2 },
+        "radius": { "0": 0.5, "1": 0.35, "2": 0.25, "3": 0.15 },
+        "taper": { "0": 0.6, "1": 0.6, "2": 0.5, "3": 0.5 },
+        "gnarliness": { "0": 0.35, "1": 0.3, "2": 0.2, "3": 0.1 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.005 }
+      },
+      "leaves": {
+        "type": "oak",
+        "billboard": "double",
+        "count": 30,
+        "size": 1.8,
+        "sizeVariance": 0.5,
+        "angle": 60,
+        "tint": "0x22aa33"
+      }
+    },
+    "lodDistances": [0, 40, 120, 300],
+    "leafTint": { "spring": "0x44bb44", "summer": "0x22aa33", "autumn": "0x22aa33", "winter": "0x22aa33" },
+    "biomes": ["tropical", "jungle"],
+    "minElevation": 0,
+    "maxElevation": 200,
+    "preferredSlope": [0, 20],
+    "spacing": { "min": 1.5, "max": 5 }
+  },
+  {
+    "id": "palm_2",
+    "displayName": "Palm 2",
+    "opensimState": 6,
+    "generator": "palm",
+    "preset": {
+      "trunkHeight": 20,
+      "trunkCurve": 0.2,
+      "trunkRadius": 0.5,
+      "frondCount": 14,
+      "frondLength": 7,
+      "frondDroop": 0.5
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x44aa44", "summer": "0x338833", "autumn": "0x338833", "winter": "0x338833" },
+    "biomes": ["tropical", "beach", "coastal"],
+    "minElevation": 0,
+    "maxElevation": 80,
+    "preferredSlope": [0, 10],
+    "spacing": { "min": 5, "max": 12 }
+  },
+  {
+    "id": "cypress_1",
+    "displayName": "Cypress 1",
+    "opensimState": 7,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "evergreen",
+      "bark": { "type": "pine", "tint": "0xeeddcc", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 2,
+        "angle": { "1": 20, "2": 25 },
+        "children": { "0": 60, "1": 4 },
+        "length": { "0": 35, "1": 5, "2": 3 },
+        "radius": { "0": 1.0, "1": 0.3, "2": 0.2 },
+        "taper": { "0": 0.85, "1": 0.6, "2": 0.5 },
+        "gnarliness": { "0": 0.05, "1": 0.1, "2": 0.1 },
+        "force": { "direction": { "x": 0, "y": 1, "z": 0 }, "strength": 0.02 }
+      },
+      "leaves": {
+        "type": "pine",
+        "billboard": "double",
+        "count": 20,
+        "size": 1.5,
+        "sizeVariance": 0.3,
+        "angle": 15,
+        "tint": "0x336644"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x447744", "summer": "0x336644", "autumn": "0x336644", "winter": "0x334444" },
+    "biomes": ["mediterranean", "temperate", "coastal"],
+    "minElevation": 0,
+    "maxElevation": 600,
+    "preferredSlope": [0, 30],
+    "spacing": { "min": 3, "max": 8 }
+  },
+  {
+    "id": "cypress_2",
+    "displayName": "Cypress 2",
+    "opensimState": 8,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "evergreen",
+      "bark": { "type": "pine", "tint": "0xeeddcc", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 2,
+        "angle": { "1": 15, "2": 20 },
+        "children": { "0": 70, "1": 3 },
+        "length": { "0": 40, "1": 4, "2": 2.5 },
+        "radius": { "0": 1.1, "1": 0.3, "2": 0.2 },
+        "taper": { "0": 0.88, "1": 0.6, "2": 0.5 },
+        "gnarliness": { "0": 0.04, "1": 0.08, "2": 0.08 },
+        "force": { "direction": { "x": 0, "y": 1, "z": 0 }, "strength": 0.025 }
+      },
+      "leaves": {
+        "type": "pine",
+        "billboard": "double",
+        "count": 18,
+        "size": 1.3,
+        "sizeVariance": 0.3,
+        "angle": 12,
+        "tint": "0x2d5e3a"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x3d6e4a", "summer": "0x2d5e3a", "autumn": "0x2d5e3a", "winter": "0x2d4e3a" },
+    "biomes": ["mediterranean", "temperate"],
+    "minElevation": 0,
+    "maxElevation": 600,
+    "preferredSlope": [0, 30],
+    "spacing": { "min": 3, "max": 8 }
+  },
+  {
+    "id": "pine_2",
+    "displayName": "Pine 2",
+    "opensimState": 9,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "evergreen",
+      "bark": { "type": "pine", "tint": "0xffffff", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 2,
+        "angle": { "1": 50, "2": 40 },
+        "children": { "0": 80, "1": 3 },
+        "length": { "0": 35, "1": 10, "2": 4 },
+        "radius": { "0": 1.3, "1": 0.5, "2": 0.3 },
+        "taper": { "0": 0.8, "1": 0.5, "2": 0.5 },
+        "gnarliness": { "0": 0.08, "1": 0.12, "2": 0.1 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.003 }
+      },
+      "leaves": {
+        "type": "pine",
+        "billboard": "double",
+        "count": 25,
+        "size": 3.5,
+        "sizeVariance": 0.6,
+        "angle": 55,
+        "tint": "0x447744"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x558855", "summer": "0x447744", "autumn": "0x447744", "winter": "0x445544" },
+    "biomes": ["forest", "mountain", "temperate"],
+    "minElevation": 0,
+    "maxElevation": 900,
+    "preferredSlope": [0, 40],
+    "spacing": { "min": 5, "max": 14 }
+  },
+  {
+    "id": "plumeria",
+    "displayName": "Plumeria",
+    "opensimState": 10,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "willow", "tint": "0xccbbaa", "textureScale": { "x": 1, "y": 5 } },
+      "branch": {
+        "levels": 2,
+        "angle": { "1": 55, "2": 50 },
+        "children": { "0": 4, "1": 3 },
+        "length": { "0": 8, "1": 6, "2": 4 },
+        "radius": { "0": 0.8, "1": 0.5, "2": 0.3 },
+        "taper": { "0": 0.6, "1": 0.6, "2": 0.5 },
+        "gnarliness": { "0": 0.2, "1": 0.25, "2": 0.15 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.008 }
+      },
+      "leaves": {
+        "type": "oak",
+        "billboard": "double",
+        "count": 12,
+        "size": 3,
+        "sizeVariance": 0.4,
+        "angle": 30,
+        "tint": "0xffeeee"
+      }
+    },
+    "lodDistances": [0, 40, 120, 300],
+    "leafTint": { "spring": "0xff88aa", "summer": "0xff7799", "autumn": "0xff9988", "winter": null },
+    "biomes": ["tropical", "subtropical", "garden"],
+    "minElevation": 0,
+    "maxElevation": 200,
+    "preferredSlope": [0, 15],
+    "spacing": { "min": 3, "max": 8 }
+  },
+  {
+    "id": "winter_aspen",
+    "displayName": "Winter Aspen",
+    "opensimState": 11,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "birch", "tint": "0xffffff", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 2,
+        "angle": { "1": 40, "2": 35 },
+        "children": { "0": 5, "1": 4 },
+        "length": { "0": 25, "1": 10, "2": 5 },
+        "radius": { "0": 0.8, "1": 0.4, "2": 0.2 },
+        "taper": { "0": 0.8, "1": 0.7, "2": 0.6 },
+        "gnarliness": { "0": 0.1, "1": 0.15, "2": 0.2 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.005 }
+      },
+      "leaves": {
+        "type": "aspen",
+        "billboard": "double",
+        "count": 0,
+        "size": 2,
+        "sizeVariance": 0.5,
+        "angle": 30,
+        "tint": "0xffffff"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": null, "summer": null, "autumn": null, "winter": null },
+    "biomes": ["temperate", "mountain", "alpine"],
+    "minElevation": 100,
+    "maxElevation": 700,
+    "preferredSlope": [0, 30],
+    "spacing": { "min": 3, "max": 8 }
+  },
+  {
+    "id": "winter_pine_1",
+    "displayName": "Winter Pine 1",
+    "opensimState": 12,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "evergreen",
+      "bark": { "type": "pine", "tint": "0xffffff", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 1,
+        "angle": { "1": 45 },
+        "children": { "0": 90 },
+        "length": { "0": 28, "1": 7 },
+        "radius": { "0": 1.1, "1": 0.35 },
+        "taper": { "0": 0.8, "1": 0.5 },
+        "gnarliness": { "0": 0.08, "1": 0.1 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.004 }
+      },
+      "leaves": {
+        "type": "pine",
+        "billboard": "double",
+        "count": 25,
+        "size": 3,
+        "sizeVariance": 0.5,
+        "angle": 55,
+        "tint": "0xccddcc"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0xccddcc", "summer": "0xccddcc", "autumn": "0xccddcc", "winter": "0xddeeee" },
+    "biomes": ["alpine", "mountain", "tundra"],
+    "minElevation": 200,
+    "maxElevation": 1000,
+    "preferredSlope": [0, 35],
+    "spacing": { "min": 5, "max": 12 }
+  },
+  {
+    "id": "winter_pine_2",
+    "displayName": "Winter Pine 2",
+    "opensimState": 13,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "evergreen",
+      "bark": { "type": "pine", "tint": "0xffffff", "textureScale": { "x": 1, "y": 8 } },
+      "branch": {
+        "levels": 1,
+        "angle": { "1": 40 },
+        "children": { "0": 100 },
+        "length": { "0": 32, "1": 8 },
+        "radius": { "0": 1.2, "1": 0.4 },
+        "taper": { "0": 0.82, "1": 0.5 },
+        "gnarliness": { "0": 0.06, "1": 0.08 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.003 }
+      },
+      "leaves": {
+        "type": "pine",
+        "billboard": "double",
+        "count": 28,
+        "size": 3.2,
+        "sizeVariance": 0.5,
+        "angle": 50,
+        "tint": "0xbbccbb"
+      }
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0xbbccbb", "summer": "0xbbccbb", "autumn": "0xbbccbb", "winter": "0xddeedd" },
+    "biomes": ["alpine", "mountain", "tundra"],
+    "minElevation": 200,
+    "maxElevation": 1000,
+    "preferredSlope": [0, 35],
+    "spacing": { "min": 5, "max": 14 }
+  },
+  {
+    "id": "eucalyptus",
+    "displayName": "Eucalyptus",
+    "opensimState": 14,
+    "generator": "ez-tree",
+    "preset": {
+      "type": "deciduous",
+      "bark": { "type": "birch", "tint": "0xddccbb", "textureScale": { "x": 1, "y": 12 } },
+      "branch": {
+        "levels": 3,
+        "angle": { "1": 35, "2": 45, "3": 40 },
+        "children": { "0": 4, "1": 3, "2": 3 },
+        "length": { "0": 45, "1": 15, "2": 8, "3": 4 },
+        "radius": { "0": 1.0, "1": 0.5, "2": 0.3, "3": 0.2 },
+        "taper": { "0": 0.85, "1": 0.7, "2": 0.6, "3": 0.5 },
+        "gnarliness": { "0": 0.05, "1": 0.1, "2": 0.15, "3": 0.1 },
+        "force": { "direction": { "x": 0, "y": -1, "z": 0 }, "strength": 0.005 }
+      },
+      "leaves": {
+        "type": "aspen",
+        "billboard": "double",
+        "count": 8,
+        "size": 1.5,
+        "sizeVariance": 0.6,
+        "angle": 25,
+        "tint": "0x88aa77"
+      }
+    },
+    "lodDistances": [0, 70, 250, 600],
+    "leafTint": { "spring": "0x99bb88", "summer": "0x88aa77", "autumn": "0x88aa77", "winter": "0x88aa77" },
+    "biomes": ["subtropical", "temperate", "coastal"],
+    "minElevation": 0,
+    "maxElevation": 400,
+    "preferredSlope": [0, 25],
+    "spacing": { "min": 6, "max": 18 }
+  },
+  {
+    "id": "fern",
+    "displayName": "Fern",
+    "opensimState": 15,
+    "generator": "fern",
+    "preset": {
+      "frondCount": 8,
+      "frondLength": 2,
+      "frondWidth": 0.4,
+      "rosetteTilt": 30
+    },
+    "lodDistances": [0, 30, 80, 200],
+    "leafTint": { "spring": "0x55bb44", "summer": "0x448833", "autumn": "0x667744", "winter": "0x445533" },
+    "biomes": ["forest", "jungle", "temperate"],
+    "minElevation": 0,
+    "maxElevation": 300,
+    "preferredSlope": [0, 25],
+    "spacing": { "min": 0.5, "max": 2 }
+  },
+  {
+    "id": "kelp_1",
+    "displayName": "Kelp",
+    "opensimState": 16,
+    "generator": "billboard",
+    "preset": {
+      "strips": 3,
+      "height": 8,
+      "width": 0.5,
+      "sway": true
+    },
+    "lodDistances": [0, 30, 80, 200],
+    "leafTint": { "spring": "0x336622", "summer": "0x336622", "autumn": "0x336622", "winter": "0x336622" },
+    "biomes": ["underwater", "ocean"],
+    "minElevation": -100,
+    "maxElevation": 0,
+    "preferredSlope": [0, 15],
+    "spacing": { "min": 1, "max": 4 }
+  },
+  {
+    "id": "eelgrass",
+    "displayName": "Eelgrass",
+    "opensimState": 17,
+    "generator": "billboard",
+    "preset": {
+      "strips": 5,
+      "height": 3,
+      "width": 0.3,
+      "sway": true
+    },
+    "lodDistances": [0, 25, 60, 150],
+    "leafTint": { "spring": "0x448833", "summer": "0x448833", "autumn": "0x448833", "winter": "0x448833" },
+    "biomes": ["underwater", "ocean", "coastal"],
+    "minElevation": -50,
+    "maxElevation": 0,
+    "preferredSlope": [0, 10],
+    "spacing": { "min": 0.5, "max": 2 }
+  },
+  {
+    "id": "sea_sword",
+    "displayName": "Sea Sword",
+    "opensimState": 18,
+    "generator": "billboard",
+    "preset": {
+      "strips": 2,
+      "height": 5,
+      "width": 0.2,
+      "sway": true
+    },
+    "lodDistances": [0, 25, 60, 150],
+    "leafTint": { "spring": "0x557733", "summer": "0x557733", "autumn": "0x557733", "winter": "0x557733" },
+    "biomes": ["underwater", "ocean"],
+    "minElevation": -80,
+    "maxElevation": 0,
+    "preferredSlope": [0, 10],
+    "spacing": { "min": 1, "max": 3 }
+  },
+  {
+    "id": "beach_grass",
+    "displayName": "Beach Grass",
+    "opensimState": 19,
+    "generator": "billboard",
+    "preset": {
+      "strips": 6,
+      "height": 1.5,
+      "width": 0.15,
+      "sway": true,
+      "cluster": true
+    },
+    "lodDistances": [0, 20, 50, 120],
+    "leafTint": { "spring": "0x99aa66", "summer": "0x88aa55", "autumn": "0xbbaa66", "winter": "0x998855" },
+    "biomes": ["beach", "coastal", "dune"],
+    "minElevation": 0,
+    "maxElevation": 30,
+    "preferredSlope": [0, 20],
+    "spacing": { "min": 0.3, "max": 1.5 }
+  },
+  {
+    "id": "kelp_2",
+    "displayName": "Kelp 2",
+    "opensimState": 20,
+    "generator": "billboard",
+    "preset": {
+      "strips": 4,
+      "height": 10,
+      "width": 0.6,
+      "sway": true
+    },
+    "lodDistances": [0, 30, 80, 200],
+    "leafTint": { "spring": "0x2d5522", "summer": "0x2d5522", "autumn": "0x2d5522", "winter": "0x2d5522" },
+    "biomes": ["underwater", "ocean"],
+    "minElevation": -100,
+    "maxElevation": 0,
+    "preferredSlope": [0, 15],
+    "spacing": { "min": 1.5, "max": 5 }
+  }
+]
