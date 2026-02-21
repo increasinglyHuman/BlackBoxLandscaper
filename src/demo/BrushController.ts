@@ -7,6 +7,7 @@
  */
 
 import * as THREE from 'three'
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { SpeciesDefinition, GeneratorOutput } from '../types/index.js'
 import type { MeshGenerator } from '../generators/types.js'
@@ -58,6 +59,7 @@ export class BrushController {
     private pointer = new THREE.Vector2()
     private cursor: THREE.Mesh
     private cursorMaterial: THREE.MeshBasicMaterial
+    private transformControls: TransformControls
 
     private isPointerDown = false
     private lastPaintPos: THREE.Vector3 | null = null
@@ -102,6 +104,19 @@ export class BrushController {
         this.cursor.renderOrder = 999
         this.scene.add(this.cursor)
 
+        // Transform gizmo for rotate/move/scale on selected tree
+        this.transformControls = new TransformControls(this.camera, this.renderer.domElement)
+        this.transformControls.setMode('rotate')
+        this.transformControls.setSpace('local')
+        ;(this.transformControls as any).visible = false
+        this.transformControls.enabled = false
+        this.scene.add(this.transformControls as any)
+
+        // Disable orbit while dragging the gizmo
+        this.transformControls.addEventListener('dragging-changed', (event: any) => {
+            this.controls.enabled = !event.value && this.mode === 'orbit'
+        })
+
         // Bind event handlers
         this._onPointerDown = this.handlePointerDown.bind(this)
         this._onPointerMove = this.handlePointerMove.bind(this)
@@ -124,7 +139,7 @@ export class BrushController {
         this.isPointerDown = false
         this.lastPaintPos = null
 
-        // Clear selection when leaving select mode
+        // Clear selection and detach gizmo when leaving select mode
         if (mode !== 'select') {
             this.clearSelection()
         }
@@ -230,6 +245,15 @@ export class BrushController {
             this.cycleMode()
         } else if (this.mode === 'select' && (event.key === 'Delete' || event.key === 'Backspace')) {
             this.deleteSelected()
+        } else if (this.mode === 'select' && this.selectedSet.size === 1) {
+            // Gizmo mode shortcuts (Blender-style)
+            if (event.key === 'r' || event.key === 'R') {
+                this.transformControls.setMode('rotate')
+            } else if (event.key === 'g' || event.key === 'G') {
+                this.transformControls.setMode('translate')
+            } else if (event.key === 's' || event.key === 'S') {
+                this.transformControls.setMode('scale')
+            }
         }
     }
 
@@ -369,6 +393,8 @@ export class BrushController {
             this.selectedSet.add(obj)
             this.setHighlight(obj, true)
         }
+
+        this.updateGizmo()
     }
 
     private setHighlight(obj: THREE.Object3D, selected: boolean): void {
@@ -387,11 +413,30 @@ export class BrushController {
             this.setHighlight(obj, false)
         }
         this.selectedSet.clear()
+        this.detachGizmo()
+    }
+
+    private updateGizmo(): void {
+        if (this.selectedSet.size === 1) {
+            const [obj] = this.selectedSet
+            this.transformControls.attach(obj)
+            ;(this.transformControls as any).visible = true
+            this.transformControls.enabled = true
+        } else {
+            this.detachGizmo()
+        }
+    }
+
+    private detachGizmo(): void {
+        this.transformControls.detach()
+        ;(this.transformControls as any).visible = false
+        this.transformControls.enabled = false
     }
 
     private deleteSelected(): void {
         if (this.selectedSet.size === 0) return
 
+        this.detachGizmo()
         for (const obj of this.selectedSet) {
             this.disposeObject(obj)
             this.treeGroup.remove(obj)
@@ -429,6 +474,9 @@ export class BrushController {
         this.cursor.geometry.dispose()
         this.cursorMaterial.dispose()
         this.scene.remove(this.cursor)
+        this.detachGizmo()
+        this.transformControls.dispose()
+        this.scene.remove(this.transformControls as any)
         this.clearSelection()
     }
 }
