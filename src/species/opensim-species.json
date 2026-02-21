@@ -529,6 +529,44 @@
     "spacing": { "min": 0.5, "max": 2 }
   },
   {
+    "id": "jurassic_fern",
+    "displayName": "Jurassic Fern",
+    "opensimState": 26,
+    "generator": "fern",
+    "preset": {
+      "frondCount": 12,
+      "frondLength": 5,
+      "frondWidth": 1.0,
+      "rosetteTilt": 35
+    },
+    "lodDistances": [0, 50, 150, 400],
+    "leafTint": { "spring": "0x44aa33", "summer": "0x337722", "autumn": "0x556633", "winter": "0x334422" },
+    "biomes": ["jungle", "tropical", "forest", "swamp"],
+    "minElevation": 0,
+    "maxElevation": 200,
+    "preferredSlope": [0, 20],
+    "spacing": { "min": 2, "max": 6 }
+  },
+  {
+    "id": "jurassic_fern_giant",
+    "displayName": "Jurassic Fern Giant",
+    "opensimState": 27,
+    "generator": "fern",
+    "preset": {
+      "frondCount": 14,
+      "frondLength": 8,
+      "frondWidth": 1.6,
+      "rosetteTilt": 40
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x3d9928", "summer": "0x2d6618", "autumn": "0x4d5528", "winter": "0x2d3318" },
+    "biomes": ["jungle", "tropical", "swamp"],
+    "minElevation": 0,
+    "maxElevation": 150,
+    "preferredSlope": [0, 15],
+    "spacing": { "min": 4, "max": 10 }
+  },
+  {
     "id": "kelp_1",
     "displayName": "Kelp",
     "opensimState": 16,

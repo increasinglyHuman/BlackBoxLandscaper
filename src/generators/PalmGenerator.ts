@@ -1,13 +1,16 @@
 /**
- * PalmGenerator — procedural palm trees via curved trunk + continuous leaf fronds.
+ * PalmGenerator — procedural palm trees via curved trunk + multi-ring frond crown.
  *
  * Algorithm:
- *   1. Trunk: tapered tube following a quadratic bezier curve with bark ring bumps
- *   2. Crown bulb: swollen ellipsoid at top where fronds emerge
- *   3. Fronds: continuous tapered leaf planes (3 verts per cross-section —
- *      left edge, raised rachis center, right edge) with subtle edge undulation
- *   4. Golden-angle spiral arrangement with per-frond random variation
- *   5. Vertex colors throughout — no textures needed
+ *   1. Trunk: tapered tube following a quadratic bezier curve with bark ring bumps.
+ *      Seed-based curve variety — most trees gentle, some pronounced, rare epic arcs.
+ *   2. Small crown bulb: barely larger than trunk top, where fronds emerge
+ *   3. 4 concentric rings of doubled fronds creating dense spherical crown
+ *   4. Each frond: 5-segment chain (10 tris). Each segment is rotated
+ *      progressively to form a gravity-obeying arc. Bottom fronds arc
+ *      most, top fronds arc least.
+ *   5. UV pivot at bottom-right of texture (where rachis base is).
+ *      Alpha cutout from PNG transparency defines visual frond shape.
  *
  * Preset parameters in species.preset:
  *   trunkHeight, trunkCurve, trunkRadius, frondCount, frondLength, frondDroop
@@ -16,6 +19,7 @@
 import * as THREE from 'three'
 import type { MeshGenerator } from './types.js'
 import type { GeneratorOutput, SpeciesDefinition } from '../types/index.js'
+import palmFrondUrl from '../assets/textures/palmFrond.png'
 
 /** Mulberry32 — fast deterministic 32-bit PRNG */
 function mulberry32(seed: number): () => number {
@@ -46,10 +50,21 @@ const DEFAULT_PRESET: PalmPreset = {
     frondDroop: 0.4,
 }
 
-const GOLDEN_ANGLE = 137.508 * (Math.PI / 180)
+const NUM_FROND_SEGMENTS = 5 // 5 segments = 10 tris per frond
 
 export class PalmGenerator implements MeshGenerator {
     readonly type = 'palm'
+
+    private frondTexture: THREE.Texture | null = null
+
+    private ensureTexture(): THREE.Texture {
+        if (!this.frondTexture) {
+            const loader = new THREE.TextureLoader()
+            this.frondTexture = loader.load(palmFrondUrl)
+            this.frondTexture.colorSpace = THREE.SRGBColorSpace
+        }
+        return this.frondTexture
+    }
 
     generate(species: SpeciesDefinition, seed?: number): GeneratorOutput {
         return this.build(species, seed ?? 42, false)
@@ -80,16 +95,16 @@ export class PalmGenerator implements MeshGenerator {
             leafColor = new THREE.Color(0x338833)
         }
 
-        // Build trunk (returns crown position for frond placement)
+        // Build trunk
         const trunk = this.buildTrunk(p, rng, simplified)
         group.add(trunk.mesh)
 
-        // Build crown bulb at top of trunk
-        const bulb = this.buildCrownBulb(p, rng, trunk.crownPos)
+        // Small crown bulb
+        const bulb = this.buildCrownBulb(p, trunk.crownPos)
         group.add(bulb.mesh)
 
-        // Build fronds emerging from crown
-        const frondResult = this.buildFronds(p, rng, simplified, leafColor, trunk.crownPos)
+        // Build multi-ring frond crown
+        const frondResult = this.buildFronds(p, rng, leafColor, trunk.crownPos)
         group.add(frondResult.group)
 
         const totalTris = trunk.triCount + bulb.triCount + frondResult.triCount
@@ -99,7 +114,12 @@ export class PalmGenerator implements MeshGenerator {
     }
 
     // ========================================================================
-    // TRUNK — curved tapered tube with bark ring bumps
+    // TRUNK — curved tapered tube with seed-based curve variety
+    // ========================================================================
+    //
+    // Most trees get a gentle curve, some get a pronounced lean, and ~15%
+    // get an epic sweeping arc — the kind you see in classic palm cluster
+    // photographs where one tree dramatically leans away from the group.
     // ========================================================================
 
     private buildTrunk(
@@ -108,11 +128,30 @@ export class PalmGenerator implements MeshGenerator {
         const heightSegs = simplified ? 10 : 16
         const radialSegs = simplified ? 6 : 8
 
-        // Random curve direction
         const curveAngle = rng() * Math.PI * 2
-        const curveDisp = p.trunkCurve * p.trunkHeight * 0.25
-        const ctrlX = Math.cos(curveAngle) * curveDisp * 0.5
-        const ctrlZ = Math.sin(curveAngle) * curveDisp * 0.5
+
+        // Seed-based trunk curve variety
+        const curveRoll = rng()
+        let curveMult: number
+        if (curveRoll < 0.60) {
+            curveMult = 0.8 + rng() * 0.7    // 60%: normal (0.8–1.5×)
+        } else if (curveRoll < 0.85) {
+            curveMult = 1.5 + rng() * 1.5    // 25%: pronounced (1.5–3.0×)
+        } else {
+            curveMult = 3.0 + rng() * 2.5    // 15%: epic arc (3.0–5.5×)
+        }
+
+        const curveDisp = p.trunkCurve * p.trunkHeight * 0.25 * curveMult
+
+        // For pronounced/epic curves, the control point bows out more at
+        // mid-height — the trunk starts leaning sooner, creating a more
+        // dramatic sweeping shape rather than just a gentle tip-lean.
+        const ctrlBow = curveMult > 2.0
+            ? 0.5 + (curveMult - 2.0) * 0.06
+            : 0.5
+
+        const ctrlX = Math.cos(curveAngle) * curveDisp * ctrlBow
+        const ctrlZ = Math.sin(curveAngle) * curveDisp * ctrlBow
         const endX = Math.cos(curveAngle) * curveDisp
         const endZ = Math.sin(curveAngle) * curveDisp
 
@@ -130,22 +169,17 @@ export class PalmGenerator implements MeshGenerator {
             const t = h / heightSegs
             const omt = 1 - t
 
-            // Quadratic bezier path
-            const pathX = omt * omt * 0 + 2 * omt * t * ctrlX + t * t * endX
+            const pathX = 2 * omt * t * ctrlX + t * t * endX
             const pathY = t * p.trunkHeight
-            const pathZ = omt * omt * 0 + 2 * omt * t * ctrlZ + t * t * endZ
+            const pathZ = 2 * omt * t * ctrlZ + t * t * endZ
 
-            if (h === heightSegs) {
-                crownPos.set(pathX, pathY, pathZ)
-            }
+            if (h === heightSegs) crownPos.set(pathX, pathY, pathZ)
 
-            // Taper from base to top (keep 50% at crown)
             let radius = p.trunkRadius * (1 - t * 0.5)
 
-            // Crown swell — widen slightly in top 15% to transition to bulb
-            if (t > 0.85) {
-                const swellT = (t - 0.85) / 0.15
-                radius *= 1 + swellT * 0.4
+            // Slight crown swell
+            if (t > 0.9) {
+                radius *= 1 + ((t - 0.9) / 0.1) * 0.2
             }
 
             // Bark ring bumps
@@ -154,9 +188,7 @@ export class PalmGenerator implements MeshGenerator {
             if (isRing) radius *= 1.12
 
             // Base flare
-            if (t < 0.12) {
-                radius *= 1 + (1 - t / 0.12) * 0.35
-            }
+            if (t < 0.12) radius *= 1 + (1 - t / 0.12) * 0.35
 
             for (let r = 0; r <= radialSegs; r++) {
                 const theta = (r / radialSegs) * Math.PI * 2
@@ -212,24 +244,23 @@ export class PalmGenerator implements MeshGenerator {
     }
 
     // ========================================================================
-    // CROWN BULB — swollen ellipsoid where fronds emerge
+    // CROWN BULB — small, barely larger than trunk top
     // ========================================================================
 
     private buildCrownBulb(
-        p: PalmPreset, _rng: () => number, crownPos: THREE.Vector3,
+        p: PalmPreset, crownPos: THREE.Vector3,
     ): { mesh: THREE.Mesh; triCount: number } {
-        const bulbRadius = p.trunkRadius * 1.8
+        const bulbRadius = p.trunkRadius * 1.2
         const geo = new THREE.SphereGeometry(bulbRadius, 8, 6)
-        geo.scale(1, 1.3, 1) // taller than wide
+        geo.scale(1, 1.2, 1)
 
-        // Vertex colors — green-brown transition
         const posAttr = geo.getAttribute('position')
         const colorArr = new Float32Array(posAttr.count * 3)
-        const brownGreen = new THREE.Color(0x5B6B20) // olive-brown
+        const darkBrown = new THREE.Color(0x3A2010)
         for (let i = 0; i < posAttr.count; i++) {
             const y = posAttr.getY(i)
-            const t = (y / (bulbRadius * 1.3)) * 0.5 + 0.5 // 0 at bottom, 1 at top
-            const c = new THREE.Color(0x6B4226).lerp(brownGreen, t)
+            const t = (y / (bulbRadius * 1.2)) * 0.5 + 0.5
+            const c = new THREE.Color(0x2A1808).lerp(darkBrown, t)
             colorArr[i * 3] = c.r
             colorArr[i * 3 + 1] = c.g
             colorArr[i * 3 + 2] = c.b
@@ -244,7 +275,7 @@ export class PalmGenerator implements MeshGenerator {
 
         const mesh = new THREE.Mesh(geo, material)
         mesh.position.copy(crownPos)
-        mesh.position.y += bulbRadius * 0.3 // sit slightly above trunk top
+        mesh.position.y += bulbRadius * 0.3
         mesh.castShadow = true
         mesh.name = 'palm_crown_bulb'
 
@@ -253,144 +284,194 @@ export class PalmGenerator implements MeshGenerator {
     }
 
     // ========================================================================
-    // FRONDS — continuous tapered leaf planes in golden-angle spiral
+    // FRONDS — 4 concentric rings, doubled count, stronger arcs at bottom
     // ========================================================================
 
     private buildFronds(
-        p: PalmPreset, rng: () => number, simplified: boolean,
+        p: PalmPreset, rng: () => number,
         leafColor: THREE.Color, crownPos: THREE.Vector3,
     ): { group: THREE.Group; triCount: number } {
         const frondGroup = new THREE.Group()
         frondGroup.name = 'palm_fronds'
         let totalTris = 0
 
-        const segments = simplified ? 6 : 10
+        const texture = this.ensureTexture()
 
-        for (let f = 0; f < p.frondCount; f++) {
-            // Golden angle spiral with random jitter
-            const baseAngle = f * GOLDEN_ANGLE + (rng() - 0.5) * 0.4
+        // Double the frond count for dense, lush crown
+        const frondCount = p.frondCount * 2
 
-            // Per-frond variation
-            const lengthVar = 0.75 + rng() * 0.5   // 75%-125% of base length
-            const droopVar = p.frondDroop * (0.6 + rng() * 0.8)  // varied droop
-            const liftAngle = (rng() - 0.3) * 0.5  // some tilt up, some down
-            const widthVar = 0.8 + rng() * 0.4     // width variation
+        // 4 concentric rings
+        // liftBase: initial angle in radians (positive = upward)
+        // arcBase: how much the frond arcs downward (total arc ≈ arcBase × 1.1 rad)
+        // lengthScale: fraction of frondLength
+        // yOffset: height offset from crown (in trunk-radius units)
+        // widthMult: plane width as fraction of length
+        const rings = [
+            // Ring 1 (top): steep upward, barely arcs
+            { count: Math.max(3, Math.round(frondCount * 0.15)),
+              liftBase: 1.0, arcBase: 0.25, lengthScale: 0.5, yOffset: 0.8, widthMult: 0.7 },
+            // Ring 2: upward/outward, gentle arc
+            { count: Math.max(4, Math.round(frondCount * 0.25)),
+              liftBase: 0.4, arcBase: 0.65, lengthScale: 0.8, yOffset: 0.3, widthMult: 0.85 },
+            // Ring 3: outward, strong arc — main visual mass
+            { count: Math.max(6, Math.round(frondCount * 0.35)),
+              liftBase: 0.0, arcBase: 1.15, lengthScale: 1.0, yOffset: -0.1, widthMult: 0.95 },
+            // Ring 4 (bottom): drooping, heavy arc
+            { count: Math.max(4, frondCount - Math.round(frondCount * 0.75)),
+              liftBase: -0.3, arcBase: 1.7, lengthScale: 0.85, yOffset: -0.4, widthMult: 0.85 },
+        ]
 
-            const frondMesh = this.buildSingleFrond(
-                p.frondLength * lengthVar, droopVar, liftAngle, widthVar,
-                leafColor, rng, segments,
-            )
+        let frondIndex = 0
+        const crownRadius = p.trunkRadius * 1.2
 
-            // Position at crown and rotate around Y axis
-            frondMesh.position.copy(crownPos)
-            frondMesh.position.y += p.trunkRadius * 0.5 // emerge from upper crown
-            frondMesh.rotation.y = baseAngle
+        for (const ring of rings) {
+            const ringAngleOffset = rng() * Math.PI * 2
 
-            frondGroup.add(frondMesh)
-            totalTris += segments * 4 // 4 tris per segment (left+right halves)
+            for (let f = 0; f < ring.count; f++) {
+                const baseAngle = ringAngleOffset + f * (Math.PI * 2 / ring.count) + (rng() - 0.5) * 0.4
+
+                // Per-frond randomization — wider range for organic extremes
+                const lengthVar = ring.lengthScale * (0.85 + rng() * 0.3)
+                const arcVar = ring.arcBase * (0.6 + rng() * 0.8)
+                const liftVar = ring.liftBase + (rng() - 0.5) * 0.3
+                const widthVar = ring.widthMult * (0.85 + rng() * 0.3)
+
+                // Color variation per ring
+                const tierTint = leafColor.clone()
+                if (ring.yOffset < -0.2) {
+                    tierTint.multiplyScalar(0.75)
+                } else if (ring.yOffset > 0.5) {
+                    tierTint.offsetHSL(0.02, 0, 0.06)
+                }
+
+                const frondMesh = this.buildSingleFrond(
+                    p.frondLength * lengthVar, arcVar, liftVar, widthVar,
+                    tierTint, rng, texture,
+                )
+
+                frondMesh.position.copy(crownPos)
+                frondMesh.position.y += crownRadius * ring.yOffset
+                frondMesh.rotation.y = baseAngle
+
+                frondGroup.add(frondMesh)
+                totalTris += NUM_FROND_SEGMENTS * 2
+                frondIndex++
+            }
         }
 
         return { group: frondGroup, triCount: totalTris }
     }
 
+    // ========================================================================
+    // SINGLE FROND — 5-segment chain with progressive arc rotation
+    // ========================================================================
+    //
+    // Each frond is 5 linked segments (10 tris). Each segment starts where the
+    // previous ended, rotated slightly more downward. This creates a gravity-
+    // obeying arc — gentle at top, heavy droop at bottom fronds.
+    //
+    // UV pivot at bottom-right of texture (rachis base).
+    //   Right edge (Z=0)      → U=1 (rachis/pivot side)
+    //   Left edge (Z=-width)  → U=0 (pinnae side)
+    //   Base (chain start)    → V=0
+    //   Tip (chain end)       → V=1
+    // ========================================================================
+
     private buildSingleFrond(
-        length: number, droop: number, liftAngle: number, widthFactor: number,
-        leafColor: THREE.Color, rng: () => number, segments: number,
+        length: number, arcIntensity: number, liftAngle: number,
+        widthFactor: number, leafColor: THREE.Color, rng: () => number,
+        texture: THREE.Texture,
     ): THREE.Mesh {
-        // 3 vertices per cross-section: left edge, center rachis, right edge
-        const vertCount = (segments + 1) * 3
+        const segLength = length / NUM_FROND_SEGMENTS
+        const vertCount = (NUM_FROND_SEGMENTS + 1) * 2
         const positions = new Float32Array(vertCount * 3)
         const colors = new Float32Array(vertCount * 3)
+        const uvs = new Float32Array(vertCount * 2)
 
-        const maxHalfWidth = length * 0.12 * widthFactor
-        const rachisRaise = 0.04 // slight ridge along center
+        // Plane width — roughly matches length for square texture
+        const planeWidth = length * widthFactor
 
-        for (let i = 0; i <= segments; i++) {
-            const t = i / segments
+        // Chain traversal state
+        let chainX = 0
+        let chainY = 0
+        let angle = liftAngle
 
-            // Position along curved frond
-            const x = t * length
+        for (let i = 0; i <= NUM_FROND_SEGMENTS; i++) {
+            const t = i / NUM_FROND_SEGMENTS
 
-            // Lift then droop curve
-            const lift = Math.sin(t * Math.PI * 0.35) * length * 0.08
-            const droopY = t * t * droop * length * 0.5
-            const tiltY = Math.sin(t * Math.PI * 0.5) * liftAngle * length * 0.15
-            const y = lift - droopY + tiltY
+            // Width ramp at base (narrow stem → full width)
+            const wFactor = t < 0.12 ? t / 0.12 : 1.0
+            const w = planeWidth * wFactor
 
-            // Width envelope: ramp up in first 15%, then concave taper to point
-            let wFactor: number
-            if (t < 0.15) {
-                wFactor = t / 0.15
-            } else {
-                wFactor = Math.pow(1 - (t - 0.15) / 0.85, 0.65)
+            const base = i * 2
+            const v = t
+
+            // Left edge — pinnae side, extends in -Z
+            positions[base * 3] = chainX
+            positions[base * 3 + 1] = chainY
+            positions[base * 3 + 2] = -w
+
+            const lc = leafColor.clone().multiplyScalar(0.85 + rng() * 0.2)
+            colors[base * 3] = lc.r
+            colors[base * 3 + 1] = lc.g
+            colors[base * 3 + 2] = lc.b
+
+            uvs[base * 2] = 0       // U=0 (left/pinnae side of texture)
+            uvs[base * 2 + 1] = v   // V=t (bottom to top)
+
+            // Right edge — rachis/pivot side, at Z=0
+            positions[(base + 1) * 3] = chainX
+            positions[(base + 1) * 3 + 1] = chainY
+            positions[(base + 1) * 3 + 2] = 0
+
+            const rc = leafColor.clone().multiplyScalar(0.85 + rng() * 0.2)
+            colors[(base + 1) * 3] = rc.r
+            colors[(base + 1) * 3 + 1] = rc.g
+            colors[(base + 1) * 3 + 2] = rc.b
+
+            uvs[(base + 1) * 2] = 1     // U=1 (right/pivot side of texture)
+            uvs[(base + 1) * 2 + 1] = v
+
+            // Advance chain to next segment position
+            if (i < NUM_FROND_SEGMENTS) {
+                // Progressive arc — increases toward tip
+                const progressiveArc = arcIntensity * (0.5 + t * 1.5) / NUM_FROND_SEGMENTS
+                // Random per-segment twist for organic look
+                const randomTwist = (rng() - 0.5) * arcIntensity * 0.15 / NUM_FROND_SEGMENTS
+
+                angle -= progressiveArc + randomTwist
+
+                chainX += segLength * Math.cos(angle)
+                chainY += segLength * Math.sin(angle)
             }
-            const halfW = maxHalfWidth * wFactor
-
-            // Subtle edge undulation to hint at individual pinnae
-            const undulation = Math.sin(t * Math.PI * 8) * maxHalfWidth * 0.04 * wFactor
-
-            const base = i * 3
-
-            // Left edge
-            const leftIdx = base * 3
-            positions[leftIdx] = x
-            positions[leftIdx + 1] = y
-            positions[leftIdx + 2] = -(halfW + undulation)
-
-            const lc = leafColor.clone().multiplyScalar(0.82 + rng() * 0.25)
-            colors[leftIdx] = lc.r
-            colors[leftIdx + 1] = lc.g
-            colors[leftIdx + 2] = lc.b
-
-            // Center (rachis) — slightly raised, darker green
-            const centerIdx = (base + 1) * 3
-            positions[centerIdx] = x
-            positions[centerIdx + 1] = y + rachisRaise * (1 - t * 0.8)
-            positions[centerIdx + 2] = 0
-
-            const cc = leafColor.clone().multiplyScalar(0.45 + rng() * 0.1)
-            colors[centerIdx] = cc.r
-            colors[centerIdx + 1] = cc.g
-            colors[centerIdx + 2] = cc.b
-
-            // Right edge
-            const rightIdx = (base + 2) * 3
-            positions[rightIdx] = x
-            positions[rightIdx + 1] = y
-            positions[rightIdx + 2] = halfW + undulation
-
-            const rc = leafColor.clone().multiplyScalar(0.82 + rng() * 0.25)
-            colors[rightIdx] = rc.r
-            colors[rightIdx + 1] = rc.g
-            colors[rightIdx + 2] = rc.b
         }
 
-        // Build triangle indices — 4 tris per segment (2 for left half, 2 for right)
+        // 2 tris per segment = 10 tris total
         const indices: number[] = []
-        for (let i = 0; i < segments; i++) {
-            const row = i * 3
-            const next = (i + 1) * 3
-
-            // Left half: left(row), center(row), left(next), center(next)
-            indices.push(row, row + 1, next)       // left → center → nextLeft
-            indices.push(row + 1, next + 1, next)  // center → nextCenter → nextLeft
-
-            // Right half: center(row), right(row), center(next), right(next)
-            indices.push(row + 1, row + 2, next + 1)    // center → right → nextCenter
-            indices.push(row + 2, next + 2, next + 1)   // right → nextRight → nextCenter
+        for (let i = 0; i < NUM_FROND_SEGMENTS; i++) {
+            const row = i * 2
+            const next = (i + 1) * 2
+            indices.push(row, row + 1, next)
+            indices.push(row + 1, next + 1, next)
         }
 
         const geo = new THREE.BufferGeometry()
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
         geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
         geo.setIndex(indices)
         geo.computeVertexNormals()
 
         const material = new THREE.MeshStandardMaterial({
+            map: texture,
             vertexColors: true,
             roughness: 0.7,
             metalness: 0.0,
             side: THREE.DoubleSide,
+            alphaTest: 0.4,
+            transparent: false,
+            emissive: new THREE.Color(0x0a1a0a),
+            emissiveIntensity: 0.3,
         })
 
         const mesh = new THREE.Mesh(geo, material)
@@ -401,6 +482,7 @@ export class PalmGenerator implements MeshGenerator {
     }
 
     dispose(): void {
-        // No shared resources to clean up
+        this.frondTexture?.dispose()
+        this.frondTexture = null
     }
 }
