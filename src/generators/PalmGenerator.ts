@@ -1,13 +1,13 @@
 /**
- * PalmGenerator — procedural palm trees via curved trunk + pinnate fronds.
+ * PalmGenerator — procedural palm trees via curved trunk + continuous leaf fronds.
  *
  * Algorithm:
- *   1. Build trunk as a tapered tube following a quadratic bezier curve
- *   2. Add bark ring bumps at regular intervals (horizontal bands)
- *   3. Vertex colors: brown gradient with darker ring marks
- *   4. Generate pinnate fronds at the crown (golden-angle spiral)
- *   5. Each frond: curved rachis ribbon + paired pinnae (leaflets)
- *   6. Frond vertex colors from species leafTint
+ *   1. Trunk: tapered tube following a quadratic bezier curve with bark ring bumps
+ *   2. Crown bulb: swollen ellipsoid at top where fronds emerge
+ *   3. Fronds: continuous tapered leaf planes (3 verts per cross-section —
+ *      left edge, raised rachis center, right edge) with subtle edge undulation
+ *   4. Golden-angle spiral arrangement with per-frond random variation
+ *   5. Vertex colors throughout — no textures needed
  *
  * Preset parameters in species.preset:
  *   trunkHeight, trunkCurve, trunkRadius, frondCount, frondLength, frondDroop
@@ -29,12 +29,12 @@ function mulberry32(seed: number): () => number {
 }
 
 interface PalmPreset {
-    trunkHeight: number    // total height in meters
-    trunkCurve: number     // lateral displacement factor (0 = straight, 0.5 = leaning)
-    trunkRadius: number    // base radius in meters
-    frondCount: number     // number of fronds at crown
-    frondLength: number    // frond length in meters
-    frondDroop: number     // droop factor (0 = horizontal, 1 = hanging)
+    trunkHeight: number
+    trunkCurve: number
+    trunkRadius: number
+    frondCount: number
+    frondLength: number
+    frondDroop: number
 }
 
 const DEFAULT_PRESET: PalmPreset = {
@@ -46,7 +46,7 @@ const DEFAULT_PRESET: PalmPreset = {
     frondDroop: 0.4,
 }
 
-const GOLDEN_ANGLE = 137.508 * (Math.PI / 180) // ~2.3999 radians
+const GOLDEN_ANGLE = 137.508 * (Math.PI / 180)
 
 export class PalmGenerator implements MeshGenerator {
     readonly type = 'palm'
@@ -80,21 +80,20 @@ export class PalmGenerator implements MeshGenerator {
             leafColor = new THREE.Color(0x338833)
         }
 
-        // Build trunk
+        // Build trunk (returns crown position for frond placement)
         const trunk = this.buildTrunk(p, rng, simplified)
         group.add(trunk.mesh)
 
-        // Build fronds at crown
-        const frondResult = this.buildFronds(
-            p, rng, simplified, leafColor, trunk.crownPos, trunk.crownDir,
-        )
+        // Build crown bulb at top of trunk
+        const bulb = this.buildCrownBulb(p, rng, trunk.crownPos)
+        group.add(bulb.mesh)
+
+        // Build fronds emerging from crown
+        const frondResult = this.buildFronds(p, rng, simplified, leafColor, trunk.crownPos)
         group.add(frondResult.group)
 
-        const totalTris = trunk.triCount + frondResult.triCount
-        const boundingRadius = Math.max(
-            p.trunkHeight,
-            p.frondLength + p.trunkRadius,
-        )
+        const totalTris = trunk.triCount + bulb.triCount + frondResult.triCount
+        const boundingRadius = Math.max(p.trunkHeight, p.frondLength + p.trunkRadius)
 
         return { object: group, triangleCount: totalTris, boundingRadius }
     }
@@ -105,12 +104,11 @@ export class PalmGenerator implements MeshGenerator {
 
     private buildTrunk(
         p: PalmPreset, rng: () => number, simplified: boolean,
-    ): { mesh: THREE.Mesh; triCount: number; crownPos: THREE.Vector3; crownDir: THREE.Vector3 } {
-        const heightSegments = simplified ? 10 : 16
-        const radialSegments = simplified ? 6 : 8
+    ): { mesh: THREE.Mesh; triCount: number; crownPos: THREE.Vector3 } {
+        const heightSegs = simplified ? 10 : 16
+        const radialSegs = simplified ? 6 : 8
 
-        // Quadratic bezier control points for trunk curve
-        // Random curve direction from seed
+        // Random curve direction
         const curveAngle = rng() * Math.PI * 2
         const curveDisp = p.trunkCurve * p.trunkHeight * 0.25
         const ctrlX = Math.cos(curveAngle) * curveDisp * 0.5
@@ -118,73 +116,60 @@ export class PalmGenerator implements MeshGenerator {
         const endX = Math.cos(curveAngle) * curveDisp
         const endZ = Math.sin(curveAngle) * curveDisp
 
-        const vertCount = (heightSegments + 1) * (radialSegments + 1)
+        const vertCount = (heightSegs + 1) * (radialSegs + 1)
         const positions = new Float32Array(vertCount * 3)
         const colors = new Float32Array(vertCount * 3)
-        const normals = new Float32Array(vertCount * 3)
 
-        const baseColor = new THREE.Color(0x6B4226)   // dark brown
-        const topColor = new THREE.Color(0x8B7914)     // lighter tan-brown
-        const ringColor = new THREE.Color(0x3D2510)    // very dark brown for ring marks
+        const baseColor = new THREE.Color(0x6B4226)
+        const topColor = new THREE.Color(0x8B7914)
+        const ringColor = new THREE.Color(0x3D2510)
 
         const crownPos = new THREE.Vector3()
-        const crownDir = new THREE.Vector3()
 
-        for (let h = 0; h <= heightSegments; h++) {
-            const t = h / heightSegments
+        for (let h = 0; h <= heightSegs; h++) {
+            const t = h / heightSegs
+            const omt = 1 - t
 
-            // Quadratic bezier: P = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-            const oneMinusT = 1 - t
-            const pathX = oneMinusT * oneMinusT * 0 + 2 * oneMinusT * t * ctrlX + t * t * endX
+            // Quadratic bezier path
+            const pathX = omt * omt * 0 + 2 * omt * t * ctrlX + t * t * endX
             const pathY = t * p.trunkHeight
-            const pathZ = oneMinusT * oneMinusT * 0 + 2 * oneMinusT * t * ctrlZ + t * t * endZ
+            const pathZ = omt * omt * 0 + 2 * omt * t * ctrlZ + t * t * endZ
 
-            // Bezier tangent: dP/dt = 2(1-t)(P1-P0) + 2t(P2-P1)
-            const tanX = 2 * oneMinusT * ctrlX + 2 * t * (endX - ctrlX)
-            const tanY = p.trunkHeight / heightSegments * heightSegments // simplify: just trunkHeight
-            const tanZ = 2 * oneMinusT * ctrlZ + 2 * t * (endZ - ctrlZ)
-
-            if (h === heightSegments) {
+            if (h === heightSegs) {
                 crownPos.set(pathX, pathY, pathZ)
-                const tLen = Math.sqrt(tanX * tanX + tanY * tanY + tanZ * tanZ)
-                crownDir.set(tanX / tLen, tanY / tLen, tanZ / tLen)
             }
 
-            // Trunk tapers from base to top (keep 50% radius at top)
+            // Taper from base to top (keep 50% at crown)
             let radius = p.trunkRadius * (1 - t * 0.5)
 
-            // Bark ring bumps — swell at regular intervals
+            // Crown swell — widen slightly in top 15% to transition to bulb
+            if (t > 0.85) {
+                const swellT = (t - 0.85) / 0.15
+                radius *= 1 + swellT * 0.4
+            }
+
+            // Bark ring bumps
             const ringSpacing = simplified ? 4 : 3
-            const isRing = h > 0 && h < heightSegments && (h % ringSpacing === 0)
-            if (isRing) {
-                radius *= 1.15
+            const isRing = h > 0 && h < heightSegs && (h % ringSpacing === 0)
+            if (isRing) radius *= 1.12
+
+            // Base flare
+            if (t < 0.12) {
+                radius *= 1 + (1 - t / 0.12) * 0.35
             }
 
-            // Slight base flare
-            if (h <= 2) {
-                radius *= 1 + (1 - t * heightSegments / 2) * 0.3
-            }
-
-            for (let r = 0; r <= radialSegments; r++) {
-                const theta = (r / radialSegments) * Math.PI * 2
+            for (let r = 0; r <= radialSegs; r++) {
+                const theta = (r / radialSegs) * Math.PI * 2
                 const nx = Math.cos(theta)
                 const nz = Math.sin(theta)
 
-                const idx = (h * (radialSegments + 1) + r) * 3
+                const idx = (h * (radialSegs + 1) + r) * 3
                 positions[idx] = pathX + nx * radius
                 positions[idx + 1] = pathY
                 positions[idx + 2] = pathZ + nz * radius
 
-                normals[idx] = nx
-                normals[idx + 1] = 0
-                normals[idx + 2] = nz
-
-                // Vertex color: brown gradient + ring darkening
                 const c = baseColor.clone().lerp(topColor, t)
-                if (isRing) {
-                    c.lerp(ringColor, 0.5)
-                }
-                // Per-vertex noise
+                if (isRing) c.lerp(ringColor, 0.5)
                 c.multiplyScalar(0.92 + rng() * 0.16)
 
                 colors[idx] = c.r
@@ -193,15 +178,13 @@ export class PalmGenerator implements MeshGenerator {
             }
         }
 
-        // Build index buffer — triangle strips between rings
         const indices: number[] = []
-        for (let h = 0; h < heightSegments; h++) {
-            for (let r = 0; r < radialSegments; r++) {
-                const a = h * (radialSegments + 1) + r
-                const b = a + radialSegments + 1
+        for (let h = 0; h < heightSegs; h++) {
+            for (let r = 0; r < radialSegs; r++) {
+                const a = h * (radialSegs + 1) + r
+                const b = a + radialSegs + 1
                 const c = a + 1
                 const d = b + 1
-
                 indices.push(a, b, c)
                 indices.push(c, b, d)
             }
@@ -209,7 +192,6 @@ export class PalmGenerator implements MeshGenerator {
 
         const geo = new THREE.BufferGeometry()
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-        geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
         geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
         geo.setIndex(indices)
         geo.computeVertexNormals()
@@ -226,153 +208,176 @@ export class PalmGenerator implements MeshGenerator {
         mesh.receiveShadow = true
         mesh.name = 'palm_trunk'
 
-        const triCount = indices.length / 3
-        return { mesh, triCount, crownPos, crownDir }
+        return { mesh, triCount: indices.length / 3, crownPos }
     }
 
     // ========================================================================
-    // FRONDS — pinnate leaves arranged in golden-angle spiral at crown
+    // CROWN BULB — swollen ellipsoid where fronds emerge
+    // ========================================================================
+
+    private buildCrownBulb(
+        p: PalmPreset, _rng: () => number, crownPos: THREE.Vector3,
+    ): { mesh: THREE.Mesh; triCount: number } {
+        const bulbRadius = p.trunkRadius * 1.8
+        const geo = new THREE.SphereGeometry(bulbRadius, 8, 6)
+        geo.scale(1, 1.3, 1) // taller than wide
+
+        // Vertex colors — green-brown transition
+        const posAttr = geo.getAttribute('position')
+        const colorArr = new Float32Array(posAttr.count * 3)
+        const brownGreen = new THREE.Color(0x5B6B20) // olive-brown
+        for (let i = 0; i < posAttr.count; i++) {
+            const y = posAttr.getY(i)
+            const t = (y / (bulbRadius * 1.3)) * 0.5 + 0.5 // 0 at bottom, 1 at top
+            const c = new THREE.Color(0x6B4226).lerp(brownGreen, t)
+            colorArr[i * 3] = c.r
+            colorArr[i * 3 + 1] = c.g
+            colorArr[i * 3 + 2] = c.b
+        }
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colorArr, 3))
+
+        const material = new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            roughness: 0.8,
+            metalness: 0.0,
+        })
+
+        const mesh = new THREE.Mesh(geo, material)
+        mesh.position.copy(crownPos)
+        mesh.position.y += bulbRadius * 0.3 // sit slightly above trunk top
+        mesh.castShadow = true
+        mesh.name = 'palm_crown_bulb'
+
+        const triCount = geo.index ? geo.index.count / 3 : posAttr.count / 3
+        return { mesh, triCount }
+    }
+
+    // ========================================================================
+    // FRONDS — continuous tapered leaf planes in golden-angle spiral
     // ========================================================================
 
     private buildFronds(
         p: PalmPreset, rng: () => number, simplified: boolean,
-        leafColor: THREE.Color, crownPos: THREE.Vector3, _crownDir: THREE.Vector3,
+        leafColor: THREE.Color, crownPos: THREE.Vector3,
     ): { group: THREE.Group; triCount: number } {
         const frondGroup = new THREE.Group()
         frondGroup.name = 'palm_fronds'
         let totalTris = 0
 
-        const pinnaePerSide = simplified ? 5 : 8
-        const rachisSegments = simplified ? 4 : 6
+        const segments = simplified ? 6 : 10
 
         for (let f = 0; f < p.frondCount; f++) {
-            // Golden angle spiral arrangement
-            const baseAngle = f * GOLDEN_ANGLE + rng() * 0.2
-            // Slight vertical tilt variation — some fronds point up, some droop more
-            const tiltVariation = (rng() - 0.3) * 0.3  // bias slightly upward
+            // Golden angle spiral with random jitter
+            const baseAngle = f * GOLDEN_ANGLE + (rng() - 0.5) * 0.4
+
+            // Per-frond variation
+            const lengthVar = 0.75 + rng() * 0.5   // 75%-125% of base length
+            const droopVar = p.frondDroop * (0.6 + rng() * 0.8)  // varied droop
+            const liftAngle = (rng() - 0.3) * 0.5  // some tilt up, some down
+            const widthVar = 0.8 + rng() * 0.4     // width variation
 
             const frondMesh = this.buildSingleFrond(
-                p, rng, leafColor, pinnaePerSide, rachisSegments, tiltVariation,
+                p.frondLength * lengthVar, droopVar, liftAngle, widthVar,
+                leafColor, rng, segments,
             )
 
-            // Position at crown and rotate around Y
+            // Position at crown and rotate around Y axis
             frondMesh.position.copy(crownPos)
+            frondMesh.position.y += p.trunkRadius * 0.5 // emerge from upper crown
             frondMesh.rotation.y = baseAngle
 
             frondGroup.add(frondMesh)
-            totalTris += this.countFrondTris(rachisSegments, pinnaePerSide)
+            totalTris += segments * 4 // 4 tris per segment (left+right halves)
         }
 
         return { group: frondGroup, triCount: totalTris }
     }
 
     private buildSingleFrond(
-        p: PalmPreset, rng: () => number, leafColor: THREE.Color,
-        pinnaePerSide: number, rachisSegments: number, tiltVariation: number,
+        length: number, droop: number, liftAngle: number, widthFactor: number,
+        leafColor: THREE.Color, rng: () => number, segments: number,
     ): THREE.Mesh {
-        const positions: number[] = []
-        const colors: number[] = []
-        const indices: number[] = []
+        // 3 vertices per cross-section: left edge, center rachis, right edge
+        const vertCount = (segments + 1) * 3
+        const positions = new Float32Array(vertCount * 3)
+        const colors = new Float32Array(vertCount * 3)
 
-        const rachisWidth = 0.04 // narrow stem
-        const pinnaWidth = p.frondLength * 0.08
-        const pinnaLength = p.frondLength * 0.15
+        const maxHalfWidth = length * 0.12 * widthFactor
+        const rachisRaise = 0.04 // slight ridge along center
 
-        // Build rachis path points
-        const rachisPoints: THREE.Vector3[] = []
-        for (let i = 0; i <= rachisSegments; i++) {
-            const t = i / rachisSegments
-            // Rachis curves outward (X) and droops (Y)
-            const x = t * p.frondLength
-            // Quadratic droop: starts nearly horizontal, curves down
-            const droopAmount = p.frondDroop + tiltVariation
-            const y = -t * t * droopAmount * p.frondLength * 0.5
-            // Slight upward initial lift before droop
-            const lift = Math.sin(t * Math.PI * 0.3) * p.frondLength * 0.08
-            rachisPoints.push(new THREE.Vector3(x, y + lift, 0))
-        }
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments
 
-        // Build rachis as a ribbon (2 verts per segment, forming a strip)
-        let vertIndex = 0
+            // Position along curved frond
+            const x = t * length
 
-        for (let i = 0; i <= rachisSegments; i++) {
-            const pt = rachisPoints[i]
-            const t = i / rachisSegments
-            const width = rachisWidth * (1 - t * 0.5) // taper
+            // Lift then droop curve
+            const lift = Math.sin(t * Math.PI * 0.35) * length * 0.08
+            const droopY = t * t * droop * length * 0.5
+            const tiltY = Math.sin(t * Math.PI * 0.5) * liftAngle * length * 0.15
+            const y = lift - droopY + tiltY
 
-            // Rachis color — slightly darker than leaf
-            const rc = leafColor.clone().multiplyScalar(0.5 + rng() * 0.1)
-
-            // Two vertices: one on each side of the rachis center
-            positions.push(pt.x, pt.y, pt.z - width)
-            colors.push(rc.r, rc.g, rc.b)
-            positions.push(pt.x, pt.y, pt.z + width)
-            colors.push(rc.r, rc.g, rc.b)
-            vertIndex += 2
-        }
-
-        // Rachis triangle strip
-        for (let i = 0; i < rachisSegments; i++) {
-            const a = i * 2
-            const b = a + 1
-            const c = a + 2
-            const d = a + 3
-            indices.push(a, c, b)
-            indices.push(b, c, d)
-        }
-
-        // Build pinnae along the rachis
-        for (let i = 1; i <= pinnaePerSide; i++) {
-            const t = i / (pinnaePerSide + 1) // don't place at very base or tip
-            // Interpolate position along rachis
-            const segF = t * rachisSegments
-            const seg = Math.floor(segF)
-            const frac = segF - seg
-            const pt0 = rachisPoints[Math.min(seg, rachisSegments)]
-            const pt1 = rachisPoints[Math.min(seg + 1, rachisSegments)]
-            const attachX = pt0.x + (pt1.x - pt0.x) * frac
-            const attachY = pt0.y + (pt1.y - pt0.y) * frac
-
-            // Pinna size tapers toward tip
-            const sizeFactor = 1 - t * 0.6
-            const pw = pinnaWidth * sizeFactor
-            const pl = pinnaLength * sizeFactor * (0.8 + rng() * 0.4)
-
-            // Pinna angle — angled slightly downward from rachis
-            const pinnaAngle = 0.3 + t * 0.4 // more droop toward tip
-
-            // Per-pinna color variation
-            const pc = leafColor.clone()
-            pc.multiplyScalar(0.85 + rng() * 0.3)
-
-            // Build pinna on both sides (-Z and +Z)
-            for (const side of [-1, 1]) {
-                const baseVert = positions.length / 3
-
-                // 4 vertices: base inner, base outer, tip inner, tip outer
-                // Inner edge (attached to rachis)
-                positions.push(attachX, attachY, side * 0.05)
-                colors.push(pc.r, pc.g, pc.b)
-
-                // Outer base
-                positions.push(attachX, attachY - pl * pinnaAngle * 0.3, side * pw)
-                colors.push(pc.r * 0.95, pc.g * 0.95, pc.b * 0.95)
-
-                // Tip inner
-                positions.push(attachX + pl * 0.8, attachY - pl * pinnaAngle, side * 0.05)
-                colors.push(pc.r * 0.9, pc.g * 0.9, pc.b * 0.9)
-
-                // Tip outer
-                positions.push(
-                    attachX + pl * 0.6,
-                    attachY - pl * pinnaAngle * 0.8,
-                    side * pw * 0.5,
-                )
-                colors.push(pc.r * 0.85, pc.g * 0.88, pc.b * 0.85)
-
-                indices.push(baseVert, baseVert + 1, baseVert + 2)
-                indices.push(baseVert + 1, baseVert + 3, baseVert + 2)
+            // Width envelope: ramp up in first 15%, then concave taper to point
+            let wFactor: number
+            if (t < 0.15) {
+                wFactor = t / 0.15
+            } else {
+                wFactor = Math.pow(1 - (t - 0.15) / 0.85, 0.65)
             }
+            const halfW = maxHalfWidth * wFactor
+
+            // Subtle edge undulation to hint at individual pinnae
+            const undulation = Math.sin(t * Math.PI * 8) * maxHalfWidth * 0.04 * wFactor
+
+            const base = i * 3
+
+            // Left edge
+            const leftIdx = base * 3
+            positions[leftIdx] = x
+            positions[leftIdx + 1] = y
+            positions[leftIdx + 2] = -(halfW + undulation)
+
+            const lc = leafColor.clone().multiplyScalar(0.82 + rng() * 0.25)
+            colors[leftIdx] = lc.r
+            colors[leftIdx + 1] = lc.g
+            colors[leftIdx + 2] = lc.b
+
+            // Center (rachis) — slightly raised, darker green
+            const centerIdx = (base + 1) * 3
+            positions[centerIdx] = x
+            positions[centerIdx + 1] = y + rachisRaise * (1 - t * 0.8)
+            positions[centerIdx + 2] = 0
+
+            const cc = leafColor.clone().multiplyScalar(0.45 + rng() * 0.1)
+            colors[centerIdx] = cc.r
+            colors[centerIdx + 1] = cc.g
+            colors[centerIdx + 2] = cc.b
+
+            // Right edge
+            const rightIdx = (base + 2) * 3
+            positions[rightIdx] = x
+            positions[rightIdx + 1] = y
+            positions[rightIdx + 2] = halfW + undulation
+
+            const rc = leafColor.clone().multiplyScalar(0.82 + rng() * 0.25)
+            colors[rightIdx] = rc.r
+            colors[rightIdx + 1] = rc.g
+            colors[rightIdx + 2] = rc.b
+        }
+
+        // Build triangle indices — 4 tris per segment (2 for left half, 2 for right)
+        const indices: number[] = []
+        for (let i = 0; i < segments; i++) {
+            const row = i * 3
+            const next = (i + 1) * 3
+
+            // Left half: left(row), center(row), left(next), center(next)
+            indices.push(row, row + 1, next)       // left → center → nextLeft
+            indices.push(row + 1, next + 1, next)  // center → nextCenter → nextLeft
+
+            // Right half: center(row), right(row), center(next), right(next)
+            indices.push(row + 1, row + 2, next + 1)    // center → right → nextCenter
+            indices.push(row + 2, next + 2, next + 1)   // right → nextRight → nextCenter
         }
 
         const geo = new THREE.BufferGeometry()
@@ -383,7 +388,7 @@ export class PalmGenerator implements MeshGenerator {
 
         const material = new THREE.MeshStandardMaterial({
             vertexColors: true,
-            roughness: 0.75,
+            roughness: 0.7,
             metalness: 0.0,
             side: THREE.DoubleSide,
         })
@@ -393,12 +398,6 @@ export class PalmGenerator implements MeshGenerator {
         mesh.receiveShadow = true
 
         return mesh
-    }
-
-    private countFrondTris(rachisSegments: number, pinnaePerSide: number): number {
-        const rachisTris = rachisSegments * 2
-        const pinnaeTris = pinnaePerSide * 2 * 2 // 2 sides × 2 tris per pinna
-        return rachisTris + pinnaeTris
     }
 
     dispose(): void {

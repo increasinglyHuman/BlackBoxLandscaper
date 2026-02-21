@@ -1,12 +1,14 @@
 /**
- * FernGenerator — procedural fern rosettes via curved pinnate fronds.
+ * FernGenerator — procedural fern rosettes via continuous tapered leaf fronds.
  *
  * Algorithm:
- *   1. No trunk — fronds radiate from a central point at ground level
- *   2. Each frond: curved rachis arching outward then drooping at tip
- *   3. Paired pinnae (leaflets) along rachis, tapering toward tip
- *   4. Fronds arranged in spiral with rosetteTilt controlling outward angle
- *   5. Vertex colors from species leafTint with per-vertex variation
+ *   1. No trunk — fronds radiate from a small central hub at ground level
+ *   2. Each frond: continuous tapered leaf plane (3 verts per cross-section)
+ *      with characteristic fern arch — rises then droops at tip
+ *   3. Width peaks mid-frond and tapers at both ends (fern silhouette)
+ *   4. Subtle edge undulation hints at individual pinnae
+ *   5. Fronds in golden-angle spiral with rosetteTilt controlling outward angle
+ *   6. Vertex colors from species leafTint with per-vertex variation
  *
  * Preset parameters in species.preset:
  *   frondCount, frondLength, frondWidth, rosetteTilt
@@ -28,10 +30,10 @@ function mulberry32(seed: number): () => number {
 }
 
 interface FernPreset {
-    frondCount: number     // number of fronds in the rosette
-    frondLength: number    // length of each frond in meters
-    frondWidth: number     // width of each pinna in meters
-    rosetteTilt: number    // outward tilt angle in degrees
+    frondCount: number
+    frondLength: number
+    frondWidth: number
+    rosetteTilt: number // degrees
 }
 
 const DEFAULT_PRESET: FernPreset = {
@@ -77,35 +79,37 @@ export class FernGenerator implements MeshGenerator {
 
         let totalTris = 0
         const tiltRad = (p.rosetteTilt * Math.PI) / 180
-
-        const pinnaePerSide = simplified ? 4 : 6
-        const rachisSegments = simplified ? 4 : 6
+        const segments = simplified ? 5 : 8
 
         for (let f = 0; f < p.frondCount; f++) {
-            const angle = f * GOLDEN_ANGLE + rng() * 0.3
-            const tiltVar = tiltRad + (rng() - 0.5) * 0.2
+            const angle = f * GOLDEN_ANGLE + (rng() - 0.5) * 0.4
+
+            // Per-frond variation
+            const lengthVar = 0.75 + rng() * 0.5
+            const tiltVar = tiltRad + (rng() - 0.5) * 0.25
+            const widthVar = 0.8 + rng() * 0.4
 
             const frondMesh = this.buildFrond(
-                p, rng, leafColor, pinnaePerSide, rachisSegments, tiltVar,
+                p.frondLength * lengthVar, p.frondWidth * widthVar,
+                tiltVar, leafColor, rng, segments,
             )
 
             frondMesh.rotation.y = angle
             group.add(frondMesh)
-
-            const rachisTris = rachisSegments * 2
-            const pinnaeTris = pinnaePerSide * 2 * 2
-            totalTris += rachisTris + pinnaeTris
+            totalTris += segments * 4
         }
 
-        // Small central hub (flattened sphere)
-        const hubGeo = new THREE.SphereGeometry(p.frondLength * 0.06, 6, 4)
+        // Small central hub
+        const hubRadius = p.frondLength * 0.06
+        const hubGeo = new THREE.SphereGeometry(hubRadius, 6, 4)
         hubGeo.scale(1, 0.4, 1)
-        const hubColors = new Float32Array(hubGeo.getAttribute('position').count * 3)
-        const hubBase = leafColor.clone().multiplyScalar(0.6)
-        for (let i = 0; i < hubColors.length; i += 3) {
-            hubColors[i] = hubBase.r
-            hubColors[i + 1] = hubBase.g
-            hubColors[i + 2] = hubBase.b
+        const hubPosAttr = hubGeo.getAttribute('position')
+        const hubColors = new Float32Array(hubPosAttr.count * 3)
+        const hubBase = leafColor.clone().multiplyScalar(0.55)
+        for (let i = 0; i < hubPosAttr.count; i++) {
+            hubColors[i * 3] = hubBase.r
+            hubColors[i * 3 + 1] = hubBase.g
+            hubColors[i * 3 + 2] = hubBase.b
         }
         hubGeo.setAttribute('color', new THREE.Float32BufferAttribute(hubColors, 3))
 
@@ -115,11 +119,11 @@ export class FernGenerator implements MeshGenerator {
             metalness: 0.0,
         })
         const hub = new THREE.Mesh(hubGeo, hubMat)
-        hub.position.y = p.frondLength * 0.03
+        hub.position.y = hubRadius * 0.5
         group.add(hub)
-        totalTris += Math.floor(hubGeo.index
+        totalTris += hubGeo.index
             ? hubGeo.index.count / 3
-            : hubGeo.getAttribute('position').count / 3)
+            : hubPosAttr.count / 3
 
         const boundingRadius = p.frondLength * 1.1
 
@@ -127,116 +131,92 @@ export class FernGenerator implements MeshGenerator {
     }
 
     // ========================================================================
-    // SINGLE FROND — curved rachis with paired tapering pinnae
+    // SINGLE FROND — continuous tapered leaf with fern arch
     // ========================================================================
 
     private buildFrond(
-        p: FernPreset, rng: () => number, leafColor: THREE.Color,
-        pinnaePerSide: number, rachisSegments: number, tilt: number,
+        length: number, maxWidth: number, tilt: number,
+        leafColor: THREE.Color, rng: () => number, segments: number,
     ): THREE.Mesh {
-        const positions: number[] = []
-        const colors: number[] = []
-        const indices: number[] = []
+        // 3 vertices per cross-section: left, center (rachis), right
+        const vertCount = (segments + 1) * 3
+        const positions = new Float32Array(vertCount * 3)
+        const colors = new Float32Array(vertCount * 3)
 
-        const rachisWidth = 0.02
-        const pinnaLength = p.frondWidth * 0.8
+        const maxHalfWidth = maxWidth * 0.5
+        const rachisRaise = 0.015
 
-        // Build rachis path — arch outward then droop at tip (characteristic fern shape)
-        const rachisPoints: THREE.Vector3[] = []
-        for (let i = 0; i <= rachisSegments; i++) {
-            const t = i / rachisSegments
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments
+
             // Outward distance along tilted direction
-            const outward = t * p.frondLength
-            // Fern arch: rises then droops (parabolic arch)
-            // Peak at ~40% along the frond, then droops
-            const archHeight = Math.sin(t * Math.PI * 0.6) * p.frondLength * 0.15
-            // Droop toward tip
-            const tipDroop = t > 0.5 ? (t - 0.5) * (t - 0.5) * p.frondLength * 0.4 : 0
-
+            const outward = t * length
             const x = Math.cos(tilt) * outward
+            // Fern arch: rises then droops at tip
+            const archHeight = Math.sin(t * Math.PI * 0.55) * length * 0.18
+            const tipDroop = t > 0.5 ? (t - 0.5) * (t - 0.5) * length * 0.5 : 0
             const y = Math.sin(tilt) * outward + archHeight - tipDroop
-            rachisPoints.push(new THREE.Vector3(x, Math.max(0, y), 0))
+
+            // Width envelope: peaks at ~40% along frond, tapers both ends
+            // Classic fern silhouette — widest in the middle
+            const wFactor = Math.sin(t * Math.PI) * Math.pow(1 - t * 0.25, 0.5)
+            const halfW = maxHalfWidth * wFactor
+
+            // Subtle pinnae undulation
+            const undulation = Math.sin(t * Math.PI * 6) * maxHalfWidth * 0.05 * wFactor
+
+            const base = i * 3
+
+            // Left edge
+            const leftIdx = base * 3
+            positions[leftIdx] = x
+            positions[leftIdx + 1] = Math.max(0.01, y)
+            positions[leftIdx + 2] = -(halfW + undulation)
+
+            const lc = leafColor.clone().multiplyScalar(0.78 + rng() * 0.3)
+            // Darken tips slightly
+            lc.multiplyScalar(1 - t * 0.12)
+            colors[leftIdx] = lc.r
+            colors[leftIdx + 1] = lc.g
+            colors[leftIdx + 2] = lc.b
+
+            // Center (rachis) — slightly raised, darker
+            const centerIdx = (base + 1) * 3
+            positions[centerIdx] = x
+            positions[centerIdx + 1] = Math.max(0.01, y) + rachisRaise * (1 - t * 0.8)
+            positions[centerIdx + 2] = 0
+
+            const cc = leafColor.clone().multiplyScalar(0.4 + rng() * 0.1)
+            colors[centerIdx] = cc.r
+            colors[centerIdx + 1] = cc.g
+            colors[centerIdx + 2] = cc.b
+
+            // Right edge
+            const rightIdx = (base + 2) * 3
+            positions[rightIdx] = x
+            positions[rightIdx + 1] = Math.max(0.01, y)
+            positions[rightIdx + 2] = halfW + undulation
+
+            const rc = leafColor.clone().multiplyScalar(0.78 + rng() * 0.3)
+            rc.multiplyScalar(1 - t * 0.12)
+            colors[rightIdx] = rc.r
+            colors[rightIdx + 1] = rc.g
+            colors[rightIdx + 2] = rc.b
         }
 
-        // Build rachis as a narrow ribbon
-        let vertIndex = 0
+        // 4 triangles per segment (2 for left half, 2 for right)
+        const indices: number[] = []
+        for (let i = 0; i < segments; i++) {
+            const row = i * 3
+            const next = (i + 1) * 3
 
-        for (let i = 0; i <= rachisSegments; i++) {
-            const pt = rachisPoints[i]
-            const t = i / rachisSegments
-            const width = rachisWidth * (1 - t * 0.7) // taper toward tip
+            // Left half
+            indices.push(row, row + 1, next)
+            indices.push(row + 1, next + 1, next)
 
-            const rc = leafColor.clone().multiplyScalar(0.45 + rng() * 0.1)
-
-            positions.push(pt.x, pt.y, pt.z - width)
-            colors.push(rc.r, rc.g, rc.b)
-            positions.push(pt.x, pt.y, pt.z + width)
-            colors.push(rc.r, rc.g, rc.b)
-            vertIndex += 2
-        }
-
-        // Rachis triangle strip
-        for (let i = 0; i < rachisSegments; i++) {
-            const a = i * 2
-            const b = a + 1
-            const c = a + 2
-            const d = a + 3
-            indices.push(a, c, b)
-            indices.push(b, c, d)
-        }
-
-        // Build pinnae along the rachis
-        for (let i = 1; i <= pinnaePerSide; i++) {
-            const t = i / (pinnaePerSide + 1)
-            const segF = t * rachisSegments
-            const seg = Math.floor(segF)
-            const frac = segF - seg
-            const pt0 = rachisPoints[Math.min(seg, rachisSegments)]
-            const pt1 = rachisPoints[Math.min(seg + 1, rachisSegments)]
-            const attachX = pt0.x + (pt1.x - pt0.x) * frac
-            const attachY = pt0.y + (pt1.y - pt0.y) * frac
-
-            // Pinnae taper toward tip — smaller near base and near tip
-            const sizeFactor = Math.sin(t * Math.PI) * (1 - t * 0.3)
-            const pw = p.frondWidth * sizeFactor * (0.85 + rng() * 0.3)
-            const pl = pinnaLength * sizeFactor * (0.8 + rng() * 0.4)
-
-            // Slight downward angle for natural look
-            const pinnaAngle = 0.15 + t * 0.2
-
-            // Per-pinna color — some variation
-            const pc = leafColor.clone()
-            pc.multiplyScalar(0.8 + rng() * 0.4)
-            // Tips slightly darker
-            pc.multiplyScalar(1 - t * 0.15)
-
-            for (const side of [-1, 1]) {
-                const baseVert = positions.length / 3
-
-                // 4 vertices forming a pinna quad
-                // Inner edge (at rachis)
-                positions.push(attachX, attachY, side * 0.02)
-                colors.push(pc.r, pc.g, pc.b)
-
-                // Outer base
-                positions.push(attachX - pl * 0.1, attachY - pl * pinnaAngle * 0.3, side * pw)
-                colors.push(pc.r * 0.95, pc.g * 0.97, pc.b * 0.95)
-
-                // Tip inner (slightly forward along rachis)
-                positions.push(attachX + pl * 0.7, attachY - pl * pinnaAngle, side * 0.02)
-                colors.push(pc.r * 0.88, pc.g * 0.9, pc.b * 0.88)
-
-                // Tip outer
-                positions.push(
-                    attachX + pl * 0.5,
-                    attachY - pl * pinnaAngle * 0.7,
-                    side * pw * 0.4,
-                )
-                colors.push(pc.r * 0.82, pc.g * 0.85, pc.b * 0.82)
-
-                indices.push(baseVert, baseVert + 1, baseVert + 2)
-                indices.push(baseVert + 1, baseVert + 3, baseVert + 2)
-            }
+            // Right half
+            indices.push(row + 1, row + 2, next + 1)
+            indices.push(row + 2, next + 2, next + 1)
         }
 
         const geo = new THREE.BufferGeometry()
