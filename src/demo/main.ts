@@ -10,6 +10,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { SpeciesRegistry } from '../species/registry.js'
 import { EzTreeAdapter } from '../generators/EzTreeAdapter.js'
 import { BillboardGenerator } from '../generators/BillboardGenerator.js'
+import { RockGenerator } from '../generators/RockGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
 import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
 import { landscaperMatrix } from './landscaper-matrix.js'
@@ -170,6 +171,7 @@ const registry = new SpeciesRegistry()
 const generators = new Map<string, MeshGenerator>()
 generators.set('ez-tree', new EzTreeAdapter())
 generators.set('billboard', new BillboardGenerator())
+generators.set('rock', new RockGenerator())
 
 const treeGroup = new THREE.Group()
 treeGroup.name = 'trees'
@@ -196,15 +198,31 @@ const statTris = document.getElementById('stat-tris')!
 const statDraws = document.getElementById('stat-draws')!
 const speciesPreview = document.getElementById('species-preview')!
 
-// Populate species dropdown
+// Populate species dropdown — grouped by generator type
 const allSpecies = registry.getAll()
 const ezTreeSpecies = allSpecies.filter(s => s.generator === 'ez-tree')
+const rockSpecies = allSpecies.filter(s => s.generator === 'rock')
 
+const treeGroup_opt = document.createElement('optgroup')
+treeGroup_opt.label = 'Trees'
 for (const species of ezTreeSpecies) {
     const option = document.createElement('option')
     option.value = species.id
     option.textContent = species.displayName
-    speciesSelect.appendChild(option)
+    treeGroup_opt.appendChild(option)
+}
+speciesSelect.appendChild(treeGroup_opt)
+
+if (rockSpecies.length > 0) {
+    const rockGroup_opt = document.createElement('optgroup')
+    rockGroup_opt.label = 'Rocks'
+    for (const species of rockSpecies) {
+        const option = document.createElement('option')
+        option.value = species.id
+        option.textContent = species.displayName
+        rockGroup_opt.appendChild(option)
+    }
+    speciesSelect.appendChild(rockGroup_opt)
 }
 
 speciesSelect.value = 'oak'
@@ -700,6 +718,7 @@ doScatter()
 console.log(`BlackBox Landscaper — Dev Harness`)
 console.log(`Species registered: ${registry.count}`)
 console.log(`  ez-tree: ${ezTreeSpecies.length}`)
+console.log(`  rock: ${rockSpecies.length}`)
 console.log(`  billboard: ${registry.getByGenerator('billboard').length}`)
 console.log(`  custom (palm/fern): ${registry.getByGenerator('palm').length + registry.getByGenerator('fern').length}`)
 

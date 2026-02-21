@@ -104,7 +104,7 @@ export interface DecorationLayer {
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter'
 
-export type GeneratorType = 'ez-tree' | 'palm' | 'bush' | 'fern' | 'billboard'
+export type GeneratorType = 'ez-tree' | 'palm' | 'bush' | 'fern' | 'billboard' | 'rock'
 
 export interface SeasonalTint {
     spring: string | number | null
