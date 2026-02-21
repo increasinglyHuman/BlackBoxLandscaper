@@ -664,7 +664,9 @@
       "flattenY": 0.4,
       "stretchXZ": 1.2,
       "baseColor": "0x888888",
-      "mossAmount": 0.0
+      "mossAmount": 0.0,
+      "clusterCount": 5,
+      "clusterSpread": 0.8
     },
     "lodDistances": [0, 25, 60, 150],
     "leafTint": { "spring": null, "summer": null, "autumn": null, "winter": null },
@@ -672,7 +674,7 @@
     "minElevation": 0,
     "maxElevation": 300,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 1, "max": 4 }
+    "spacing": { "min": 1.5, "max": 5 }
   },
   {
     "id": "cliff_rock",
@@ -680,24 +682,24 @@
     "opensimState": 23,
     "generator": "rock",
     "preset": {
-      "size": 2.5,
+      "size": 5.0,
       "detail": 2,
       "scrapeCount": 6,
-      "scrapeDepth": 0.45,
-      "noiseScale": 1.5,
+      "scrapeDepth": 0.4,
+      "noiseScale": 0.8,
       "noiseAmount": 0.12,
       "flattenY": 0.9,
       "stretchXZ": 0.8,
       "baseColor": "0x666655",
       "mossAmount": 0.0
     },
-    "lodDistances": [0, 50, 150, 400],
+    "lodDistances": [0, 60, 200, 500],
     "leafTint": { "spring": null, "summer": null, "autumn": null, "winter": null },
     "biomes": ["mountain", "cliff", "alpine", "desert"],
     "minElevation": 50,
     "maxElevation": 1500,
     "preferredSlope": [10, 60],
-    "spacing": { "min": 4, "max": 12 }
+    "spacing": { "min": 6, "max": 18 }
   },
   {
     "id": "mossy_rock",

@@ -21,7 +21,7 @@
 
 ## Features
 
-- **21 OpenSim-compatible tree species** — oak, pine, cypress, willow, palm, fern, and more
+- **26 species** — 21 OpenSim-compatible trees + 5 procedural rock types
 - **4 scatter algorithms** — Poisson disk, clustered, density map, and grid
 - **Interactive brush tools** — paint, erase, and select with brush cursor
 - **Transform gizmo** — rotate, move, and scale selected instances (R/G/S keys)
@@ -35,6 +35,7 @@
 | Generator | Species | Method |
 |-----------|---------|--------|
 | **ez-tree** | 14 species | Procedural L-system trees via [@dgreenheck/ez-tree](https://github.com/dgreenheck/ez-tree) |
+| **rock** | 5 species | Procedural scrape + noise rocks (boulder, river stone, cliff, mossy, slab) |
 | **billboard** | 5 species | Textured quad billboards |
 | **palm** | 2 species | Stub (planned) |
 | **fern** | 1 species | Stub (planned) |
