@@ -13,21 +13,45 @@ import { BillboardGenerator } from '../generators/BillboardGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
 import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
 import { landscaperMatrix } from './landscaper-matrix.js'
+import { BrushController } from './BrushController.js'
+import type { BrushMode } from './BrushController.js'
 import type { DecorationLayer, DistributionAlgorithm } from '../types/index.js'
 import type { MeshGenerator } from '../generators/types.js'
 
 // ============================================================================
-// SPLASH SCREEN
+// IFRAME DETECTION
 // ============================================================================
 
-landscaperMatrix.init()
-landscaperMatrix.start()
+const isEmbedded = (() => {
+    try { return window.self !== window.top }
+    catch { return true } // cross-origin restriction means we ARE in an iframe
+})()
+
+if (isEmbedded) {
+    document.body.classList.add('embedded')
+}
+
+// ============================================================================
+// SPLASH SCREEN
+// ============================================================================
 
 const welcomeScreen = document.getElementById('welcomeScreen')!
 const mainApp = document.getElementById('mainApp')!
 const welcomeStartBtn = document.getElementById('welcomeStartBtn')!
 
 let sceneInitialized = false
+
+// Auto-skip splash when embedded in World iframe
+if (isEmbedded) {
+    welcomeScreen.style.display = 'none'
+    mainApp.style.display = 'block'
+    mainApp.style.opacity = '1'
+    sceneInitialized = true
+    requestAnimationFrame(() => initScene())
+} else {
+    landscaperMatrix.init()
+    landscaperMatrix.start()
+}
 
 welcomeStartBtn.addEventListener('click', () => {
     mainApp.style.display = 'block'
@@ -226,11 +250,14 @@ function initPreview(): void {
         0.1, 100
     )
 
-    const ambient = new THREE.AmbientLight(0xaabbcc, 1.2)
+    const ambient = new THREE.AmbientLight(0xccddee, 2.0)
     previewScene.add(ambient)
-    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.5)
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 2.5)
     dirLight.position.set(5, 10, 5)
     previewScene.add(dirLight)
+    const fillPreview = new THREE.DirectionalLight(0x88aacc, 1.2)
+    fillPreview.position.set(-5, 5, -5)
+    previewScene.add(fillPreview)
 }
 
 function updatePreview(): void {
@@ -243,9 +270,9 @@ function updatePreview(): void {
 
     if (!previewRenderer) initPreview()
 
-    // Clear previous preview objects (keep 2 lights)
-    while (previewScene!.children.length > 2) {
-        previewScene!.remove(previewScene!.children[2])
+    // Clear previous preview objects (keep 3 lights)
+    while (previewScene!.children.length > 3) {
+        previewScene!.remove(previewScene!.children[3])
     }
 
     const result = generator.generate(species, 12345)
@@ -367,6 +394,11 @@ function doScatter(): void {
                 inst.scale.z * groupScale
             )
 
+            output.object.userData = {
+                speciesId: species.id,
+                triangleCount: output.triangleCount,
+            }
+
             output.object.traverse((child) => {
                 if (child instanceof THREE.Mesh) {
                     child.castShadow = true
@@ -405,10 +437,22 @@ function clearForest(): void {
     updateStats()
 }
 
+function updateClearButton(): void {
+    if (treeCount > 0) {
+        btnClear.disabled = false
+        btnClear.classList.add('primary')
+    } else {
+        btnClear.disabled = true
+        btnClear.classList.remove('primary')
+    }
+}
+
 function updateStats(): void {
     statTrees.textContent = String(treeCount)
     statTris.textContent = totalTriangles.toLocaleString()
     statDraws.textContent = String(renderer.info.render.calls)
+    updateClearButton()
+    updateActionButtons()
 }
 
 // ============================================================================
@@ -416,7 +460,6 @@ function updateStats(): void {
 // ============================================================================
 
 btnScatter.addEventListener('click', () => {
-    clearForest()
     doScatter()
 })
 
@@ -426,6 +469,216 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
+})
+
+// ============================================================================
+// BRUSH CONTROLLER
+// ============================================================================
+
+// Tool toggle buttons
+const toolButtons = {
+    orbit: document.getElementById('tool-orbit') as HTMLButtonElement,
+    paint: document.getElementById('tool-paint') as HTMLButtonElement,
+    erase: document.getElementById('tool-erase') as HTMLButtonElement,
+    select: document.getElementById('tool-select') as HTMLButtonElement,
+}
+const brushSizeRow = document.getElementById('brush-size-row')!
+const brushSizeSlider = document.getElementById('brush-size-slider') as HTMLInputElement
+const brushSizeValue = document.getElementById('brush-size-value')!
+
+function syncToolUI(mode: BrushMode): void {
+    for (const [key, btn] of Object.entries(toolButtons)) {
+        btn.classList.toggle('active', key === mode)
+    }
+    brushSizeRow.style.display = (mode === 'paint' || mode === 'erase') ? '' : 'none'
+}
+
+const brush = new BrushController({
+    scene,
+    camera,
+    renderer,
+    controls,
+    ground,
+    treeGroup,
+    getSpecies: () => {
+        const species = registry.getById(speciesSelect.value)
+        if (!species) return null
+        const generator = generators.get(species.generator)
+        if (!generator) return null
+        return { species, generator }
+    },
+    sampleHeight: sampleGroundHeight,
+    onInstanceAdded: (_obj, triCount) => {
+        treeCount++
+        totalTriangles += triCount
+    },
+    onInstanceRemoved: (obj) => {
+        treeCount = Math.max(0, treeCount - 1)
+        totalTriangles = Math.max(0, totalTriangles - (obj.userData.triangleCount ?? 0))
+    },
+    onStatsChanged: updateStats,
+    onModeChanged: syncToolUI,
+})
+
+for (const [mode, btn] of Object.entries(toolButtons)) {
+    btn.addEventListener('click', () => brush.setMode(mode as BrushMode))
+}
+
+brushSizeSlider.addEventListener('input', () => {
+    const val = parseInt(brushSizeSlider.value)
+    brushSizeValue.textContent = String(val)
+    brush.setBrushRadius(val)
+})
+
+// ============================================================================
+// ACTION BUTTONS — Save to World, Terraformer, Return, Save Locally
+// ============================================================================
+
+const btnSaveWorld = document.getElementById('btn-save-world') as HTMLButtonElement | null
+const btnOpenTerraformer = document.getElementById('btn-open-terraformer') as HTMLButtonElement | null
+const btnReturnWorld = document.getElementById('btn-return-world') as HTMLButtonElement | null
+const btnSaveLocal = document.getElementById('btn-save-local') as HTMLButtonElement | null
+
+interface LandscaperManifest {
+    version: '1.0'
+    timestamp: string
+    instanceId?: string
+    regionBounds: { type: 'bounds'; minX: number; maxX: number; minZ: number; maxZ: number }
+    layers: Array<{
+        layerId: string
+        speciesId: string
+        algorithm: string
+        instances: Array<{
+            position: { x: number; y: number; z: number }
+            rotation: { x: number; y: number; z: number }
+            scale: { x: number; y: number; z: number }
+        }>
+    }>
+    stats: { treeCount: number; triangleCount: number }
+}
+
+function buildManifest(): LandscaperManifest {
+    const instancesBySpecies = new Map<string, Array<{
+        position: { x: number; y: number; z: number }
+        rotation: { x: number; y: number; z: number }
+        scale: { x: number; y: number; z: number }
+    }>>()
+
+    for (const child of treeGroup.children) {
+        const speciesId = child.userData.speciesId ?? 'unknown'
+        if (!instancesBySpecies.has(speciesId)) {
+            instancesBySpecies.set(speciesId, [])
+        }
+        instancesBySpecies.get(speciesId)!.push({
+            position: { x: child.position.x, y: child.position.y, z: child.position.z },
+            rotation: { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z },
+            scale: { x: child.scale.x, y: child.scale.y, z: child.scale.z },
+        })
+    }
+
+    const layers: LandscaperManifest['layers'] = []
+    for (const [speciesId, instances] of instancesBySpecies) {
+        layers.push({
+            layerId: `layer-${speciesId}`,
+            speciesId,
+            algorithm: algorithmSelect.value,
+            instances,
+        })
+    }
+
+    return {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        instanceId: worldContext?.instanceId,
+        regionBounds: { type: 'bounds', minX: -128, maxX: 128, minZ: -128, maxZ: 128 },
+        layers,
+        stats: { treeCount, triangleCount: totalTriangles },
+    }
+}
+
+function updateActionButtons(): void {
+    const hasContent = treeCount > 0
+    if (btnSaveWorld) btnSaveWorld.disabled = !hasContent
+    if (btnSaveLocal) btnSaveLocal.disabled = !hasContent
+}
+
+// Save Locally — download manifest as JSON file
+btnSaveLocal?.addEventListener('click', () => {
+    const manifest = buildManifest()
+    const json = JSON.stringify(manifest, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `landscaper-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+})
+
+// ============================================================================
+// POSTMESSAGE BRIDGE (only when embedded in World)
+// ============================================================================
+
+let worldContext: { instanceId?: string; regionBounds?: any; existingManifest?: any } | null = null
+
+function setupPostMessageBridge(): void {
+    window.addEventListener('message', (event: MessageEvent) => {
+        let msg: any
+        try {
+            msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+        } catch { return }
+
+        if (msg?.source !== 'blackbox-world') return
+
+        switch (msg.type) {
+            case 'init-context':
+                console.log('[Landscaper] Received context from World:', msg.payload)
+                worldContext = msg.payload
+                break
+            case 'terrain-data':
+                console.log('[Landscaper] Received terrain data')
+                break
+        }
+    })
+
+    // Announce readiness to World parent
+    window.parent.postMessage(JSON.stringify({
+        source: 'blackbox-landscaper',
+        type: 'ready',
+        payload: { version: '0.1.0' },
+    }), '*')
+}
+
+if (isEmbedded) {
+    setupPostMessageBridge()
+}
+
+// Save to World
+btnSaveWorld?.addEventListener('click', () => {
+    const manifest = buildManifest()
+    window.parent.postMessage(JSON.stringify({
+        source: 'blackbox-landscaper',
+        type: 'save-manifest',
+        payload: { manifest },
+    }), '*')
+})
+
+// Open Terraformer
+btnOpenTerraformer?.addEventListener('click', () => {
+    window.parent.postMessage(JSON.stringify({
+        source: 'blackbox-landscaper',
+        type: 'request-terraformer',
+        payload: {},
+    }), '*')
+})
+
+// Return to World (without saving)
+btnReturnWorld?.addEventListener('click', () => {
+    window.parent.postMessage(JSON.stringify({
+        source: 'blackbox-landscaper',
+        type: 'close',
+        payload: {},
+    }), '*')
 })
 
 // ============================================================================
