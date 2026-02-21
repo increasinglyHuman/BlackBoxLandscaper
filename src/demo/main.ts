@@ -11,6 +11,8 @@ import { SpeciesRegistry } from '../species/registry.js'
 import { EzTreeAdapter } from '../generators/EzTreeAdapter.js'
 import { BillboardGenerator } from '../generators/BillboardGenerator.js'
 import { RockGenerator } from '../generators/RockGenerator.js'
+import { PalmGenerator } from '../generators/PalmGenerator.js'
+import { FernGenerator } from '../generators/FernGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
 import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
 import { landscaperMatrix } from './landscaper-matrix.js'
@@ -172,6 +174,8 @@ const generators = new Map<string, MeshGenerator>()
 generators.set('ez-tree', new EzTreeAdapter())
 generators.set('billboard', new BillboardGenerator())
 generators.set('rock', new RockGenerator())
+generators.set('palm', new PalmGenerator())
+generators.set('fern', new FernGenerator())
 
 const treeGroup = new THREE.Group()
 treeGroup.name = 'trees'
@@ -201,6 +205,7 @@ const speciesPreview = document.getElementById('species-preview')!
 // Populate species dropdown — grouped by generator type
 const allSpecies = registry.getAll()
 const ezTreeSpecies = allSpecies.filter(s => s.generator === 'ez-tree')
+const palmFernSpecies = allSpecies.filter(s => s.generator === 'palm' || s.generator === 'fern')
 const rockSpecies = allSpecies.filter(s => s.generator === 'rock')
 
 const treeGroup_opt = document.createElement('optgroup')
@@ -212,6 +217,18 @@ for (const species of ezTreeSpecies) {
     treeGroup_opt.appendChild(option)
 }
 speciesSelect.appendChild(treeGroup_opt)
+
+if (palmFernSpecies.length > 0) {
+    const palmFernGroup_opt = document.createElement('optgroup')
+    palmFernGroup_opt.label = 'Palms & Ferns'
+    for (const species of palmFernSpecies) {
+        const option = document.createElement('option')
+        option.value = species.id
+        option.textContent = species.displayName
+        palmFernGroup_opt.appendChild(option)
+    }
+    speciesSelect.appendChild(palmFernGroup_opt)
+}
 
 if (rockSpecies.length > 0) {
     const rockGroup_opt = document.createElement('optgroup')
@@ -720,6 +737,7 @@ console.log(`Species registered: ${registry.count}`)
 console.log(`  ez-tree: ${ezTreeSpecies.length}`)
 console.log(`  rock: ${rockSpecies.length}`)
 console.log(`  billboard: ${registry.getByGenerator('billboard').length}`)
-console.log(`  custom (palm/fern): ${registry.getByGenerator('palm').length + registry.getByGenerator('fern').length}`)
+console.log(`  palm: ${registry.getByGenerator('palm').length}`)
+console.log(`  fern: ${registry.getByGenerator('fern').length}`)
 
 } // end initScene
