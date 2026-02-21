@@ -18,6 +18,7 @@
  */
 
 import * as THREE from 'three'
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { createNoise2D, createNoise3D } from 'simplex-noise'
 import type { MeshGenerator } from './types.js'
 import type { GeneratorOutput, SpeciesDefinition } from '../types/index.js'
@@ -144,7 +145,14 @@ export class RockGenerator implements MeshGenerator {
         const noise3D = createNoise3D(() => rng())
 
         const detail = simplified ? Math.max(1, p.detail - 1) : p.detail
-        const geo = new THREE.IcosahedronGeometry(p.size, detail)
+
+        // IcosahedronGeometry is already non-indexed (PolyhedronGeometry builds
+        // per-face vertices with no index buffer). mergeVertices() welds coincident
+        // vertices into a proper indexed mesh so scrapes move shared verts together.
+        const rawGeo = new THREE.IcosahedronGeometry(p.size, detail)
+        const geo = mergeVertices(rawGeo)
+        rawGeo.dispose()
+
         const pos = geo.getAttribute('position')
 
         // ── Step 1: Scrape on INDEXED geometry (shared verts → no gaps) ──
