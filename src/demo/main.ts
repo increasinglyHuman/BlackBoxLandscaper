@@ -13,6 +13,7 @@ import { BillboardGenerator } from '../generators/BillboardGenerator.js'
 import { RockGenerator } from '../generators/RockGenerator.js'
 import { PalmGenerator } from '../generators/PalmGenerator.js'
 import { FernGenerator } from '../generators/FernGenerator.js'
+import { GrassGenerator } from '../generators/GrassGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
 import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
 import { landscaperMatrix } from './landscaper-matrix.js'
@@ -176,6 +177,7 @@ generators.set('billboard', new BillboardGenerator())
 generators.set('rock', new RockGenerator())
 generators.set('palm', new PalmGenerator())
 generators.set('fern', new FernGenerator())
+generators.set('grass', new GrassGenerator())
 
 const treeGroup = new THREE.Group()
 treeGroup.name = 'trees'
@@ -206,41 +208,28 @@ const speciesPreview = document.getElementById('species-preview')!
 const allSpecies = registry.getAll()
 const ezTreeSpecies = allSpecies.filter(s => s.generator === 'ez-tree')
 const palmFernSpecies = allSpecies.filter(s => s.generator === 'palm' || s.generator === 'fern')
+const grassSpecies = allSpecies.filter(s => s.generator === 'grass')
+const billboardSpecies = allSpecies.filter(s => s.generator === 'billboard')
 const rockSpecies = allSpecies.filter(s => s.generator === 'rock')
 
-const treeGroup_opt = document.createElement('optgroup')
-treeGroup_opt.label = 'Trees'
-for (const species of ezTreeSpecies) {
-    const option = document.createElement('option')
-    option.value = species.id
-    option.textContent = species.displayName
-    treeGroup_opt.appendChild(option)
-}
-speciesSelect.appendChild(treeGroup_opt)
-
-if (palmFernSpecies.length > 0) {
-    const palmFernGroup_opt = document.createElement('optgroup')
-    palmFernGroup_opt.label = 'Palms & Ferns'
-    for (const species of palmFernSpecies) {
+function addOptGroup(label: string, species: typeof allSpecies): void {
+    if (species.length === 0) return
+    const group = document.createElement('optgroup')
+    group.label = label
+    for (const s of species) {
         const option = document.createElement('option')
-        option.value = species.id
-        option.textContent = species.displayName
-        palmFernGroup_opt.appendChild(option)
+        option.value = s.id
+        option.textContent = s.displayName
+        group.appendChild(option)
     }
-    speciesSelect.appendChild(palmFernGroup_opt)
+    speciesSelect.appendChild(group)
 }
 
-if (rockSpecies.length > 0) {
-    const rockGroup_opt = document.createElement('optgroup')
-    rockGroup_opt.label = 'Rocks'
-    for (const species of rockSpecies) {
-        const option = document.createElement('option')
-        option.value = species.id
-        option.textContent = species.displayName
-        rockGroup_opt.appendChild(option)
-    }
-    speciesSelect.appendChild(rockGroup_opt)
-}
+addOptGroup('Trees', ezTreeSpecies)
+addOptGroup('Palms & Ferns', palmFernSpecies)
+addOptGroup('Grass & Ground Cover', grassSpecies)
+addOptGroup('Underwater & Beach', billboardSpecies)
+addOptGroup('Rocks', rockSpecies)
 
 speciesSelect.value = 'oak'
 
@@ -735,9 +724,10 @@ doScatter()
 console.log(`BlackBox Landscaper — Dev Harness`)
 console.log(`Species registered: ${registry.count}`)
 console.log(`  ez-tree: ${ezTreeSpecies.length}`)
-console.log(`  rock: ${rockSpecies.length}`)
-console.log(`  billboard: ${registry.getByGenerator('billboard').length}`)
 console.log(`  palm: ${registry.getByGenerator('palm').length}`)
 console.log(`  fern: ${registry.getByGenerator('fern').length}`)
+console.log(`  grass: ${grassSpecies.length}`)
+console.log(`  billboard: ${billboardSpecies.length}`)
+console.log(`  rock: ${rockSpecies.length}`)
 
 } // end initScene

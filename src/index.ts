@@ -34,6 +34,7 @@ export { BillboardGenerator } from './generators/BillboardGenerator.js'
 export { RockGenerator } from './generators/RockGenerator.js'
 export { PalmGenerator } from './generators/PalmGenerator.js'
 export { FernGenerator } from './generators/FernGenerator.js'
+export { GrassGenerator } from './generators/GrassGenerator.js'
 
 // Rendering
 export { LODBuilder } from './rendering/LODBuilder.js'
