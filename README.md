@@ -105,7 +105,7 @@ npm run test       # Run tests
 
 ## Part of the BlackBox Creative Suite
 
-[World](https://poqpoq.com/world/) · [Animator](https://poqpoq.com/animator/) · [Skinner](https://poqpoq.com/skinner/) · [Terraformer](https://poqpoq.com/terraformer/) · [Landscaper](https://poqpoq.com/landscaper/)
+[World](https://poqpoq.com/world/) · [Legacy](https://poqpoq.com/legacy/) · [Animator](https://poqpoq.com/animator/) · [Skinner](https://poqpoq.com/skinner/) · [Terraformer](https://poqpoq.com/terraformer/) · [Landscaper](https://poqpoq.com/landscaper/)
 
 ## License
 
