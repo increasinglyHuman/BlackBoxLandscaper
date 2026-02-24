@@ -35,6 +35,7 @@ export { RockGenerator } from './generators/RockGenerator.js'
 export { PalmGenerator } from './generators/PalmGenerator.js'
 export { FernGenerator } from './generators/FernGenerator.js'
 export { GrassGenerator } from './generators/GrassGenerator.js'
+export { KelpGenerator } from './generators/KelpGenerator.js'
 
 // Rendering
 export { LODBuilder } from './rendering/LODBuilder.js'

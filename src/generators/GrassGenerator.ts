@@ -213,7 +213,7 @@ export class GrassGenerator implements MeshGenerator {
 
         const material = new THREE.MeshStandardMaterial({
             vertexColors: true,
-            roughness: 0.8,
+            roughness: 0.95,
             metalness: 0.0,
             side: THREE.DoubleSide,
             emissive: new THREE.Color(0x0a1a0a),

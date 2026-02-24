@@ -14,6 +14,7 @@ import { RockGenerator } from '../generators/RockGenerator.js'
 import { PalmGenerator } from '../generators/PalmGenerator.js'
 import { FernGenerator } from '../generators/FernGenerator.js'
 import { GrassGenerator } from '../generators/GrassGenerator.js'
+import { KelpGenerator } from '../generators/KelpGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
 import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
 import { landscaperMatrix } from './landscaper-matrix.js'
@@ -178,6 +179,7 @@ generators.set('rock', new RockGenerator())
 generators.set('palm', new PalmGenerator())
 generators.set('fern', new FernGenerator())
 generators.set('grass', new GrassGenerator())
+generators.set('kelp', new KelpGenerator())
 
 const treeGroup = new THREE.Group()
 treeGroup.name = 'trees'
@@ -210,6 +212,7 @@ const ezTreeSpecies = allSpecies.filter(s => s.generator === 'ez-tree')
 const palmFernSpecies = allSpecies.filter(s => s.generator === 'palm' || s.generator === 'fern')
 const grassSpecies = allSpecies.filter(s => s.generator === 'grass')
 const billboardSpecies = allSpecies.filter(s => s.generator === 'billboard')
+const kelpSpecies = allSpecies.filter(s => s.generator === 'kelp')
 const rockSpecies = allSpecies.filter(s => s.generator === 'rock')
 
 function addOptGroup(label: string, species: typeof allSpecies): void {
@@ -228,7 +231,8 @@ function addOptGroup(label: string, species: typeof allSpecies): void {
 addOptGroup('Trees', ezTreeSpecies)
 addOptGroup('Palms & Ferns', palmFernSpecies)
 addOptGroup('Grass & Ground Cover', grassSpecies)
-addOptGroup('Underwater & Beach', billboardSpecies)
+addOptGroup('Underwater & Kelp', kelpSpecies)
+addOptGroup('Beach & Billboard', billboardSpecies)
 addOptGroup('Rocks', rockSpecies)
 
 speciesSelect.value = 'oak'

@@ -297,8 +297,10 @@ export class FernGenerator implements MeshGenerator {
 
         const material = new THREE.MeshStandardMaterial({
             map: texture,
+            bumpMap: texture,
+            bumpScale: 0.5,
             vertexColors: true,
-            roughness: 0.7,
+            roughness: 0.92,
             metalness: 0.0,
             side: THREE.DoubleSide,
             alphaTest: 0.4,

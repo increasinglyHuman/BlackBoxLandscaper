@@ -833,17 +833,20 @@
   },
   {
     "id": "kelp_1",
-    "displayName": "Kelp",
+    "displayName": "Sea Kelp",
     "opensimState": 16,
-    "generator": "billboard",
+    "generator": "kelp",
     "preset": {
-      "strips": 3,
+      "bladeCount": 3,
       "height": 8,
-      "width": 0.5,
-      "sway": true
+      "width": 1.2,
+      "segments": 8,
+      "curvature": 0.4,
+      "spread": 0.4,
+      "texture": "seaKelp"
     },
     "lodDistances": [0, 30, 80, 200],
-    "leafTint": { "spring": "0x336622", "summer": "0x336622", "autumn": "0x336622", "winter": "0x336622" },
+    "leafTint": { "spring": "0x446633", "summer": "0x446633", "autumn": "0x446633", "winter": "0x446633" },
     "biomes": ["underwater", "ocean"],
     "minElevation": -100,
     "maxElevation": 0,
@@ -852,17 +855,20 @@
   },
   {
     "id": "eelgrass",
-    "displayName": "Eelgrass",
+    "displayName": "Leafy Seaweed",
     "opensimState": 17,
-    "generator": "billboard",
+    "generator": "kelp",
     "preset": {
-      "strips": 5,
+      "bladeCount": 4,
       "height": 3,
-      "width": 0.3,
-      "sway": true
+      "width": 0.8,
+      "segments": 6,
+      "curvature": 0.3,
+      "spread": 0.3,
+      "texture": "leafySeaweed"
     },
     "lodDistances": [0, 25, 60, 150],
-    "leafTint": { "spring": "0x448833", "summer": "0x448833", "autumn": "0x448833", "winter": "0x448833" },
+    "leafTint": { "spring": "0x557744", "summer": "0x557744", "autumn": "0x557744", "winter": "0x557744" },
     "biomes": ["underwater", "ocean", "coastal"],
     "minElevation": -50,
     "maxElevation": 0,
@@ -871,17 +877,20 @@
   },
   {
     "id": "sea_sword",
-    "displayName": "Sea Sword",
+    "displayName": "Rust Kelp",
     "opensimState": 18,
-    "generator": "billboard",
+    "generator": "kelp",
     "preset": {
-      "strips": 2,
+      "bladeCount": 2,
       "height": 5,
-      "width": 0.2,
-      "sway": true
+      "width": 0.6,
+      "segments": 7,
+      "curvature": 0.5,
+      "spread": 0.25,
+      "texture": "rustKelp"
     },
     "lodDistances": [0, 25, 60, 150],
-    "leafTint": { "spring": "0x557733", "summer": "0x557733", "autumn": "0x557733", "winter": "0x557733" },
+    "leafTint": { "spring": "0x887755", "summer": "0x887755", "autumn": "0x887755", "winter": "0x887755" },
     "biomes": ["underwater", "ocean"],
     "minElevation": -80,
     "maxElevation": 0,
@@ -892,13 +901,15 @@
     "id": "beach_grass",
     "displayName": "Beach Grass",
     "opensimState": 19,
-    "generator": "billboard",
+    "generator": "grass",
     "preset": {
-      "strips": 6,
-      "height": 1.5,
-      "width": 0.15,
-      "sway": true,
-      "cluster": true
+      "bladeCount": 16,
+      "bladeHeight": 1.2,
+      "bladeWidth": 0.03,
+      "heightVariance": 0.4,
+      "curvature": 0.3,
+      "spread": 0.3,
+      "segments": 3
     },
     "lodDistances": [0, 20, 50, 120],
     "leafTint": { "spring": "0x99aa66", "summer": "0x88aa55", "autumn": "0xbbaa66", "winter": "0x998855" },
@@ -910,17 +921,20 @@
   },
   {
     "id": "kelp_2",
-    "displayName": "Kelp 2",
+    "displayName": "Fat Kelp",
     "opensimState": 20,
-    "generator": "billboard",
+    "generator": "kelp",
     "preset": {
-      "strips": 4,
-      "height": 10,
-      "width": 0.6,
-      "sway": true
+      "bladeCount": 5,
+      "height": 4,
+      "width": 1.5,
+      "segments": 6,
+      "curvature": 0.25,
+      "spread": 0.5,
+      "texture": "fatKelp"
     },
     "lodDistances": [0, 30, 80, 200],
-    "leafTint": { "spring": "0x2d5522", "summer": "0x2d5522", "autumn": "0x2d5522", "winter": "0x2d5522" },
+    "leafTint": { "spring": "0x445533", "summer": "0x445533", "autumn": "0x445533", "winter": "0x445533" },
     "biomes": ["underwater", "ocean"],
     "minElevation": -100,
     "maxElevation": 0,
@@ -1083,12 +1097,12 @@
     "generator": "grass",
     "preset": {
       "bladeCount": 10,
-      "bladeHeight": 1.2,
-      "bladeWidth": 0.04,
+      "bladeHeight": 3.6,
+      "bladeWidth": 0.06,
       "heightVariance": 0.3,
       "curvature": 0.7,
-      "spread": 0.35,
-      "segments": 4
+      "spread": 0.5,
+      "segments": 5
     },
     "lodDistances": [0, 25, 60, 150],
     "leafTint": { "spring": "0x77bb55", "summer": "0x668844", "autumn": "0xaa9944", "winter": "0x998866" },
@@ -1143,5 +1157,32 @@
     "maxElevation": 400,
     "preferredSlope": [0, 20],
     "spacing": { "min": 0.4, "max": 1.5 }
+  },
+  {
+    "id": "coconut_palm",
+    "displayName": "Coconut Palm",
+    "opensimState": 39,
+    "generator": "palm",
+    "preset": {
+      "trunkHeight": 14,
+      "trunkCurve": 0.45,
+      "trunkRadius": 0.35,
+      "frondCount": 12,
+      "frondLength": 5,
+      "frondDroop": 0.4,
+      "crownTexture": "palmCap",
+      "crownLayers": 3,
+      "crownScale": 1.8,
+      "trunkHeightSegs": 24,
+      "trunkRadialSegs": 10,
+      "curveBias": 0.7
+    },
+    "lodDistances": [0, 60, 200, 500],
+    "leafTint": { "spring": "0x44aa44", "summer": "0x448844", "autumn": "0x448844", "winter": "0x448844" },
+    "biomes": ["tropical", "beach", "coastal"],
+    "minElevation": 0,
+    "maxElevation": 80,
+    "preferredSlope": [0, 15],
+    "spacing": { "min": 4, "max": 10 }
   }
 ]

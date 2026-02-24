@@ -20,6 +20,8 @@ import * as THREE from 'three'
 import type { MeshGenerator } from './types.js'
 import type { GeneratorOutput, SpeciesDefinition } from '../types/index.js'
 import palmFrondUrl from '../assets/textures/palmFrond.png'
+import palmCapUrl from '../assets/textures/palmCap.png'
+import palmTrunkUrl from '../assets/textures/palmTrunk.png'
 
 /** Mulberry32 — fast deterministic 32-bit PRNG */
 function mulberry32(seed: number): () => number {
@@ -39,6 +41,20 @@ interface PalmPreset {
     frondCount: number
     frondLength: number
     frondDroop: number
+    /** When set, uses stacked textured quads instead of procedural fronds */
+    crownTexture?: string
+    /** Number of stacked crown layers (default 3) */
+    crownLayers?: number
+    /** Crown quad scale relative to frondLength (default 1.8) */
+    crownScale?: number
+    /** Trunk height segments (default 16, higher = smoother curves) */
+    trunkHeightSegs?: number
+    /** Trunk radial segments (default 8, higher = rounder cross-section) */
+    trunkRadialSegs?: number
+    /** Curve intensity distribution — shifts the probability toward extreme bends.
+     *  0 = default (60/25/15 normal/pronounced/epic),
+     *  1 = wild (30/30/40) */
+    curveBias?: number
 }
 
 const DEFAULT_PRESET: PalmPreset = {
@@ -56,6 +72,8 @@ export class PalmGenerator implements MeshGenerator {
     readonly type = 'palm'
 
     private frondTexture: THREE.Texture | null = null
+    private capTexture: THREE.Texture | null = null
+    private trunkTexture: THREE.Texture | null = null
 
     private ensureTexture(): THREE.Texture {
         if (!this.frondTexture) {
@@ -64,6 +82,26 @@ export class PalmGenerator implements MeshGenerator {
             this.frondTexture.colorSpace = THREE.SRGBColorSpace
         }
         return this.frondTexture
+    }
+
+    private ensureCapTexture(): THREE.Texture {
+        if (!this.capTexture) {
+            const loader = new THREE.TextureLoader()
+            this.capTexture = loader.load(palmCapUrl)
+            this.capTexture.colorSpace = THREE.SRGBColorSpace
+        }
+        return this.capTexture
+    }
+
+    private ensureTrunkTexture(): THREE.Texture {
+        if (!this.trunkTexture) {
+            const loader = new THREE.TextureLoader()
+            this.trunkTexture = loader.load(palmTrunkUrl)
+            this.trunkTexture.colorSpace = THREE.SRGBColorSpace
+            this.trunkTexture.wrapS = THREE.RepeatWrapping
+            this.trunkTexture.wrapT = THREE.RepeatWrapping
+        }
+        return this.trunkTexture
     }
 
     generate(species: SpeciesDefinition, seed?: number): GeneratorOutput {
@@ -103,11 +141,19 @@ export class PalmGenerator implements MeshGenerator {
         const bulb = this.buildCrownBulb(p, trunk.crownPos)
         group.add(bulb.mesh)
 
-        // Build multi-ring frond crown
-        const frondResult = this.buildFronds(p, rng, leafColor, trunk.crownPos)
-        group.add(frondResult.group)
+        // Build crown — stacked cap quads or procedural fronds
+        let crownTris: number
+        if (p.crownTexture) {
+            const capResult = this.buildCrownCap(p, rng, leafColor, trunk.crownPos)
+            group.add(capResult.group)
+            crownTris = capResult.triCount
+        } else {
+            const frondResult = this.buildFronds(p, rng, leafColor, trunk.crownPos)
+            group.add(frondResult.group)
+            crownTris = frondResult.triCount
+        }
 
-        const totalTris = trunk.triCount + bulb.triCount + frondResult.triCount
+        const totalTris = trunk.triCount + bulb.triCount + crownTris
         const boundingRadius = Math.max(p.trunkHeight, p.frondLength + p.trunkRadius)
 
         return { object: group, triangleCount: totalTris, boundingRadius }
@@ -125,20 +171,29 @@ export class PalmGenerator implements MeshGenerator {
     private buildTrunk(
         p: PalmPreset, rng: () => number, simplified: boolean,
     ): { mesh: THREE.Mesh; triCount: number; crownPos: THREE.Vector3 } {
-        const heightSegs = simplified ? 10 : 16
-        const radialSegs = simplified ? 6 : 8
+        const heightSegs = simplified
+            ? Math.max(10, Math.round((p.trunkHeightSegs ?? 16) * 0.6))
+            : (p.trunkHeightSegs ?? 16)
+        const radialSegs = simplified
+            ? Math.max(6, Math.round((p.trunkRadialSegs ?? 8) * 0.75))
+            : (p.trunkRadialSegs ?? 8)
 
         const curveAngle = rng() * Math.PI * 2
 
-        // Seed-based trunk curve variety
+        // Seed-based trunk curve variety — curveBias shifts distribution
+        // toward extreme bends. 0 = default, 1 = wild.
+        const bias = p.curveBias ?? 0
         const curveRoll = rng()
         let curveMult: number
-        if (curveRoll < 0.60) {
-            curveMult = 0.8 + rng() * 0.7    // 60%: normal (0.8–1.5×)
-        } else if (curveRoll < 0.85) {
-            curveMult = 1.5 + rng() * 1.5    // 25%: pronounced (1.5–3.0×)
+        // Thresholds shift with bias: normal shrinks, epic grows
+        const normalCutoff = 0.60 - bias * 0.30   // 0.60 → 0.30
+        const pronouncedCutoff = 0.85 - bias * 0.15  // 0.85 → 0.70
+        if (curveRoll < normalCutoff) {
+            curveMult = 0.8 + rng() * 0.7    // normal (0.8–1.5×)
+        } else if (curveRoll < pronouncedCutoff) {
+            curveMult = 1.5 + rng() * 2.0    // pronounced (1.5–3.5×)
         } else {
-            curveMult = 3.0 + rng() * 2.5    // 15%: epic arc (3.0–5.5×)
+            curveMult = 3.5 + rng() * 4.5    // epic arc (3.5–8.0×)
         }
 
         const curveDisp = p.trunkCurve * p.trunkHeight * 0.25 * curveMult
@@ -147,7 +202,7 @@ export class PalmGenerator implements MeshGenerator {
         // mid-height — the trunk starts leaning sooner, creating a more
         // dramatic sweeping shape rather than just a gentle tip-lean.
         const ctrlBow = curveMult > 2.0
-            ? 0.5 + (curveMult - 2.0) * 0.06
+            ? 0.5 + (curveMult - 2.0) * 0.08
             : 0.5
 
         const ctrlX = Math.cos(curveAngle) * curveDisp * ctrlBow
@@ -158,10 +213,14 @@ export class PalmGenerator implements MeshGenerator {
         const vertCount = (heightSegs + 1) * (radialSegs + 1)
         const positions = new Float32Array(vertCount * 3)
         const colors = new Float32Array(vertCount * 3)
+        const uvs = new Float32Array(vertCount * 2)
 
-        const baseColor = new THREE.Color(0x6B4226)
-        const topColor = new THREE.Color(0x8B7914)
-        const ringColor = new THREE.Color(0x3D2510)
+        // Texture tiles ~4 times along trunk height for good ring density
+        const vRepeat = Math.max(2, Math.round(p.trunkHeight / 4))
+
+        const baseColor = new THREE.Color(0xDDBBA0)
+        const topColor = new THREE.Color(0xD8C878)
+        const ringColor = new THREE.Color(0xAA8866)
 
         const crownPos = new THREE.Vector3()
 
@@ -169,9 +228,44 @@ export class PalmGenerator implements MeshGenerator {
             const t = h / heightSegs
             const omt = 1 - t
 
+            // Bezier position
             const pathX = 2 * omt * t * ctrlX + t * t * endX
             const pathY = t * p.trunkHeight
             const pathZ = 2 * omt * t * ctrlZ + t * t * endZ
+
+            // Bezier tangent (derivative of quadratic bezier)
+            const tanX = 2 * (1 - 2 * t) * ctrlX + 2 * t * endX
+            const tanY = p.trunkHeight
+            const tanZ = 2 * (1 - 2 * t) * ctrlZ + 2 * t * endZ
+            const tanLen = Math.sqrt(tanX * tanX + tanY * tanY + tanZ * tanZ)
+
+            // Normalized tangent (trunk direction)
+            const tx = tanX / tanLen
+            const ty = tanY / tanLen
+            const tz = tanZ / tanLen
+
+            // Build perpendicular frame: normal N and binormal B
+            // Cross tangent with world-Z to get N; if nearly parallel, use world-X
+            let nx0 = ty * 1 - tz * 0   // cross(T, (0,0,1))
+            let ny0 = tz * 0 - tx * 1
+            let nz0 = tx * 0 - ty * 0
+            let nLen = Math.sqrt(nx0 * nx0 + ny0 * ny0 + nz0 * nz0)
+            if (nLen < 0.001) {
+                // Tangent nearly parallel to Z — use X instead
+                nx0 = ty * 0 - tz * 0   // cross(T, (1,0,0))
+                ny0 = tz * 1 - tx * 0
+                nz0 = tx * 0 - ty * 1
+                nLen = Math.sqrt(nx0 * nx0 + ny0 * ny0 + nz0 * nz0)
+            }
+            // Normalized normal
+            const nnx = nx0 / nLen
+            const nny = ny0 / nLen
+            const nnz = nz0 / nLen
+
+            // Binormal = cross(tangent, normal)
+            const bnx = ty * nnz - tz * nny
+            const bny = tz * nnx - tx * nnz
+            const bnz = tx * nny - ty * nnx
 
             if (h === heightSegs) crownPos.set(pathX, pathY, pathZ)
 
@@ -192,13 +286,23 @@ export class PalmGenerator implements MeshGenerator {
 
             for (let r = 0; r <= radialSegs; r++) {
                 const theta = (r / radialSegs) * Math.PI * 2
-                const nx = Math.cos(theta)
-                const nz = Math.sin(theta)
+                const cosT = Math.cos(theta)
+                const sinT = Math.sin(theta)
 
-                const idx = (h * (radialSegs + 1) + r) * 3
-                positions[idx] = pathX + nx * radius
-                positions[idx + 1] = pathY
-                positions[idx + 2] = pathZ + nz * radius
+                // Ring vertex in the perpendicular plane via normal + binormal
+                const offX = (nnx * cosT + bnx * sinT) * radius
+                const offY = (nny * cosT + bny * sinT) * radius
+                const offZ = (nnz * cosT + bnz * sinT) * radius
+
+                const vi = h * (radialSegs + 1) + r
+                const idx = vi * 3
+                positions[idx] = pathX + offX
+                positions[idx + 1] = pathY + offY
+                positions[idx + 2] = pathZ + offZ
+
+                // UVs: U wraps around circumference, V tiles along height
+                uvs[vi * 2] = r / radialSegs
+                uvs[vi * 2 + 1] = t * vRepeat
 
                 const c = baseColor.clone().lerp(topColor, t)
                 if (isRing) c.lerp(ringColor, 0.5)
@@ -225,12 +329,17 @@ export class PalmGenerator implements MeshGenerator {
         const geo = new THREE.BufferGeometry()
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
         geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
         geo.setIndex(indices)
         geo.computeVertexNormals()
 
+        const barkTex = this.ensureTrunkTexture()
         const material = new THREE.MeshStandardMaterial({
+            map: barkTex,
+            bumpMap: barkTex,
+            bumpScale: 1.2,
             vertexColors: true,
-            roughness: 0.85,
+            roughness: 0.95,
             metalness: 0.0,
             side: THREE.DoubleSide,
         })
@@ -269,7 +378,7 @@ export class PalmGenerator implements MeshGenerator {
 
         const material = new THREE.MeshStandardMaterial({
             vertexColors: true,
-            roughness: 0.8,
+            roughness: 0.95,
             metalness: 0.0,
         })
 
@@ -281,6 +390,86 @@ export class PalmGenerator implements MeshGenerator {
 
         const triCount = geo.index ? geo.index.count / 3 : posAttr.count / 3
         return { mesh, triCount }
+    }
+
+    // ========================================================================
+    // CROWN CAP — crossed vertical textured quads (Lilith Heart technique)
+    // ========================================================================
+    //
+    // 3 vertical planes crossed through the crown point at different Y
+    // rotations (like a billboard star). Each plane has the crown cap
+    // texture with alpha cutout. The planes are vertical (parallel to
+    // the trunk) so the painted fronds hang downward naturally.
+    // ========================================================================
+
+    private buildCrownCap(
+        p: PalmPreset, rng: () => number,
+        leafColor: THREE.Color, crownPos: THREE.Vector3,
+    ): { group: THREE.Group; triCount: number } {
+        const capGroup = new THREE.Group()
+        capGroup.name = 'palm_crown_cap'
+
+        const texture = this.ensureCapTexture()
+        const layers = p.crownLayers ?? 3
+        const baseScale = (p.crownScale ?? 1.8) * p.frondLength
+
+        let totalTris = 0
+
+        for (let i = 0; i < layers; i++) {
+            // Evenly spaced Y rotations + random jitter (crossed star pattern)
+            const yRot = (i / layers) * Math.PI + (rng() - 0.5) * 0.3
+            // Scale variation per layer
+            const scaleVar = 0.85 + rng() * 0.3
+            const layerScale = baseScale * scaleVar
+
+            // Per-layer tint variation
+            const layerColor = leafColor.clone()
+            layerColor.offsetHSL(
+                (rng() - 0.5) * 0.04,
+                (rng() - 0.5) * 0.08,
+                (rng() - 0.5) * 0.06,
+            )
+
+            const geo = new THREE.PlaneGeometry(layerScale, layerScale)
+
+            // Tint vertex colors
+            const posAttr = geo.getAttribute('position')
+            const colorArr = new Float32Array(posAttr.count * 3)
+            for (let v = 0; v < posAttr.count; v++) {
+                colorArr[v * 3] = layerColor.r
+                colorArr[v * 3 + 1] = layerColor.g
+                colorArr[v * 3 + 2] = layerColor.b
+            }
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colorArr, 3))
+
+            const material = new THREE.MeshStandardMaterial({
+                map: texture,
+                bumpMap: texture,
+                bumpScale: 0.8,
+                vertexColors: true,
+                roughness: 0.92,
+                metalness: 0.0,
+                side: THREE.DoubleSide,
+                alphaTest: 0.3,
+                transparent: false,
+                emissive: new THREE.Color(0x0a1a0a),
+                emissiveIntensity: 0.3,
+            })
+
+            const mesh = new THREE.Mesh(geo, material)
+            mesh.position.copy(crownPos)
+
+            // Planes stay vertical (parallel to trunk), just crossed at Y angles
+            mesh.rotation.y = yRot
+
+            mesh.castShadow = true
+            mesh.receiveShadow = true
+            capGroup.add(mesh)
+
+            totalTris += 2  // 1 quad = 2 tris
+        }
+
+        return { group: capGroup, triCount: totalTris }
     }
 
     // ========================================================================
@@ -464,8 +653,10 @@ export class PalmGenerator implements MeshGenerator {
 
         const material = new THREE.MeshStandardMaterial({
             map: texture,
+            bumpMap: texture,
+            bumpScale: 0.6,
             vertexColors: true,
-            roughness: 0.7,
+            roughness: 0.92,
             metalness: 0.0,
             side: THREE.DoubleSide,
             alphaTest: 0.4,
@@ -484,5 +675,9 @@ export class PalmGenerator implements MeshGenerator {
     dispose(): void {
         this.frondTexture?.dispose()
         this.frondTexture = null
+        this.capTexture?.dispose()
+        this.capTexture = null
+        this.trunkTexture?.dispose()
+        this.trunkTexture = null
     }
 }
