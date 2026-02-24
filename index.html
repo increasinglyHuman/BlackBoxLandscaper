@@ -3,7 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlackBox Landscaper</title>
+    <title>BlackBox Landscaper - Procedural World Population Tool | poqpoq</title>
+    <meta name="description" content="Procedural world population tool for 3D environments. Scatter trees, rocks, vegetation, and objects with terrain-aware algorithms. Poisson disk, clustered, density, and grid distributions.">
+    <link rel="canonical" href="https://poqpoq.com/landscaper/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://poqpoq.com/landscaper/">
+    <meta property="og:title" content="BlackBox Landscaper - Procedural World Population Tool">
+    <meta property="og:description" content="Scatter trees, rocks, and objects across 3D terrains with smart algorithms. Free, browser-based.">
+    <meta property="og:image" content="https://poqpoq.com/landscaper/og-image.png">
+    <meta property="og:site_name" content="BlackBox Creative Suite">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="BlackBox Landscaper - Procedural World Population Tool">
+    <meta name="twitter:description" content="Procedural scatter for 3D worlds. Poisson disk, clustered, density, and grid distributions.">
+    <meta name="twitter:image" content="https://poqpoq.com/landscaper/og-image.png">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "BlackBox Landscaper",
+      "url": "https://poqpoq.com/landscaper/",
+      "description": "Procedural world population tool for 3D environments. Terrain-aware scatter with Poisson disk, clustered, density, and grid distributions.",
+      "applicationCategory": "DesignApplication",
+      "operatingSystem": "Any (Web Browser)",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Allen Partridge",
+        "url": "https://github.com/increasinglyHuman"
+      },
+      "isPartOf": {
+        "@type": "SoftwareApplication",
+        "name": "BlackBox Creative Suite",
+        "url": "https://poqpoq.com/"
+      },
+      "browserRequirements": "Requires WebGL 2.0 support"
+    }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Montserrat:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -282,20 +327,207 @@
             overflow-y: auto;
             z-index: 50;
             font-size: 12px;
+            /* Custom scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #333 transparent;
         }
 
-        .panel-section {
-            padding: 12px 14px;
+        #controls::-webkit-scrollbar { width: 6px; }
+        #controls::-webkit-scrollbar-track { background: transparent; }
+        #controls::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        #controls::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Active species label below preview */
+        #active-species-label {
+            padding: 4px 14px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #66cc88;
+            text-align: center;
             border-bottom: 1px solid #333;
         }
 
-        .panel-header {
+        /* ── Accordion system ── */
+
+        .accordion {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Mode indicator (Skinner pattern) ── */
+        #mode-indicator {
+            position: absolute;
+            top: 60px;
+            left: 290px;
+            background: rgba(42, 42, 42, 0.92);
+            color: #0099ff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(0, 153, 255, 0.3);
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #mode-indicator .mode-label {
+            letter-spacing: 0.5px;
+        }
+        #mode-indicator .mode-hint {
+            font-size: 10px;
+            opacity: 0.5;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+        /* Orbit — blue (passive) */
+        #mode-indicator[data-mode="orbit"] {
+            color: #0099ff;
+            border-color: rgba(0, 153, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 153, 255, 0.15);
+        }
+        /* Paint — green (active) */
+        #mode-indicator[data-mode="paint"] {
+            color: #66cc88;
+            border-color: rgba(102, 204, 136, 0.5);
+            box-shadow: 0 4px 12px rgba(102, 204, 136, 0.2);
+        }
+        /* Erase — red */
+        #mode-indicator[data-mode="erase"] {
+            color: #ff6666;
+            border-color: rgba(255, 102, 102, 0.5);
+            box-shadow: 0 4px 12px rgba(255, 102, 102, 0.2);
+        }
+        /* Select — amber */
+        #mode-indicator[data-mode="select"] {
+            color: #ffaa33;
+            border-color: rgba(255, 170, 51, 0.5);
+            box-shadow: 0 4px 12px rgba(255, 170, 51, 0.2);
+        }
+
+        .accordion-banner {
+            padding: 10px 14px;
+            background: #222;
+            border-bottom: 1px solid #1a1a1a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .accordion-banner:hover {
+            background: #2a2a2a;
+        }
+
+        .accordion-banner.expanded {
+            border-left: 2px solid #66cc88;
+            background: #2a2a2a;
+        }
+
+        .accordion-label {
+            color: #e0e0e0;
             font-size: 11px;
             font-weight: 700;
-            color: #66cc88;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            margin-bottom: 10px;
+        }
+
+        .accordion-banner.expanded .accordion-label {
+            color: #66cc88;
+        }
+
+        .accordion-chevron {
+            color: #555;
+            font-size: 11px;
+            transition: transform 0.2s;
+        }
+
+        .accordion-banner.expanded .accordion-chevron {
+            transform: rotate(90deg);
+            color: #66cc88;
+        }
+
+        .accordion-content {
+            padding: 10px 14px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Species category sub-banners ── */
+
+        .category-banner {
+            padding: 6px 10px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s;
+            user-select: none;
+            border-radius: 3px;
+            margin-bottom: 2px;
+        }
+
+        .category-banner:hover {
+            background: #252525;
+        }
+
+        .category-banner.active {
+            background: #252525;
+            border-left: 2px solid #66cc88;
+        }
+
+        .category-label {
+            font-size: 11px;
+            color: #ccc;
+            font-weight: 500;
+        }
+
+        .category-banner.active .category-label {
+            color: #66cc88;
+        }
+
+        .category-count {
+            font-size: 10px;
+            color: #555;
+            background: #1a1a1a;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .category-banner.active .category-count {
+            color: #66cc88;
+            background: rgba(102, 204, 136, 0.1);
+        }
+
+        .category-content {
+            padding: 6px 10px 8px;
+        }
+
+        .category-select {
+            width: 100%;
+            padding: 5px 8px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 3px;
+            color: #e0e0e0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .category-select:hover {
+            border-color: #66cc88;
         }
 
         .control-row {
@@ -532,6 +764,296 @@
             display: flex;
         }
 
+        /* Drawer sections visible only when embedded */
+        .drawer-section--world-only {
+            display: none;
+        }
+
+        body.embedded .drawer-section--world-only {
+            display: block;
+        }
+
+        /* ================================================================
+           RIGHT DRAWER — World Integration Panel (slide-out)
+           ================================================================ */
+
+        .right-drawer {
+            position: absolute;
+            top: 48px;
+            right: 0;
+            bottom: 56px;
+            width: 280px;
+            background: #2a2a2a;
+            border-left: 1px solid #444;
+            z-index: 60;
+            transform: translateX(280px);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            font-size: 12px;
+            /* Custom scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #333 transparent;
+        }
+
+        .right-drawer::-webkit-scrollbar { width: 6px; }
+        .right-drawer::-webkit-scrollbar-track { background: transparent; }
+        .right-drawer::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        .right-drawer::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .right-drawer.open {
+            transform: translateX(0);
+        }
+
+        /* Toggle tab — sits on left edge of drawer */
+        .drawer-toggle {
+            position: absolute;
+            top: 50%;
+            left: -32px;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 80px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-right: none;
+            border-radius: 6px 0 0 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #66cc88;
+            font-size: 14px;
+            transition: all 0.2s;
+            z-index: 61;
+        }
+
+        .drawer-toggle:hover {
+            background: #333;
+            color: #88ffaa;
+        }
+
+        .drawer-toggle .toggle-arrow {
+            transition: transform 0.3s ease;
+        }
+
+        .right-drawer.open .drawer-toggle .toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Drawer sections */
+        .drawer-section {
+            padding: 12px 14px;
+            border-bottom: 1px solid #333;
+        }
+
+        .drawer-header {
+            font-size: 11px;
+            font-weight: 700;
+            color: #66cc88;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+        }
+
+        /* Instance context display */
+        .context-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .context-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .context-row .context-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+
+        .context-row .context-label {
+            color: #777;
+            min-width: 40px;
+        }
+
+        .context-row .context-value {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+
+        .context-row .context-value.placeholder {
+            color: #555;
+            font-weight: 400;
+            font-style: italic;
+        }
+
+        /* ── Hero button (Send to poqpoq) — two-layer gradient from TOOL_TEAM_CSS_SPEC ── */
+        .hero-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid;
+            text-align: left;
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+            margin-bottom: 8px;
+        }
+
+        .hero-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.15);
+        }
+
+        .hero-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+            transform: none;
+            filter: none;
+        }
+
+        .hero-btn .hero-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .hero-btn .hero-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hero-btn .hero-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .hero-btn .hero-sub {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 1px;
+        }
+
+        /* Landscaper identity — forest green (two-layer depth trick) */
+        .hero-btn--landscaper {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.07) 0%, transparent 40%, rgba(0,0,0,0.15) 100%),
+                linear-gradient(135deg, #2d5a27 0%, #1a3a15 100%);
+            border-color: rgba(80, 160, 60, 0.4);
+            color: #c8e6c0;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .hero-btn--landscaper:hover {
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.06),
+                0 4px 12px rgba(50, 130, 40, 0.2);
+        }
+
+        /* ── Inline dialogs (success / error) ── */
+        .drawer-dialog {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 14px;
+            border-radius: 8px;
+            animation: dialogFadeIn 0.2s ease;
+            text-align: center;
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+        }
+
+        .drawer-dialog.visible {
+            display: flex;
+        }
+
+        @keyframes dialogFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .drawer-dialog--success {
+            background: linear-gradient(180deg, rgba(40,160,80,0.08) 0%, rgba(20,100,50,0.12) 100%);
+            border: 1px solid rgba(60, 200, 100, 0.3);
+        }
+
+        .drawer-dialog--error {
+            background: linear-gradient(180deg, rgba(200,40,40,0.08) 0%, rgba(120,20,20,0.12) 100%);
+            border: 1px solid rgba(200, 60, 60, 0.3);
+        }
+
+        .drawer-dialog .dialog-icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        .drawer-dialog .dialog-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .drawer-dialog--success .dialog-title { color: #6c6; }
+        .drawer-dialog--error .dialog-title { color: #e66; }
+
+        .drawer-dialog .dialog-message {
+            font-size: 11px;
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .drawer-dialog .dialog-message strong {
+            color: #fff;
+        }
+
+        .drawer-dialog .dialog-details {
+            width: 100%;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .drawer-dialog .dialog-detail-row {
+            font-size: 11px;
+            color: #aaa;
+            padding: 3px 0;
+            text-align: left;
+        }
+
+        .drawer-dialog .dialog-actions {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .dialog-btn-done {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            border: 1px solid rgba(60, 200, 100, 0.4);
+            background: linear-gradient(135deg, #1a5a30 0%, #103a1a 100%);
+            color: #b0f0c0;
+            font-weight: 600;
+        }
+
+        .dialog-btn-done:hover {
+            background: linear-gradient(135deg, #207040 0%, #154a22 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(60, 200, 100, 0.25);
+        }
+
         /* Tool toggle grid */
         .tool-toggle {
             display: grid;
@@ -702,118 +1224,145 @@
 
         <div id="canvas-container"></div>
 
+        <!-- Mode indicator — Skinner pattern -->
+        <div id="mode-indicator">
+            <span class="mode-label">Orbit</span>
+            <span class="mode-hint">SPACE to cycle</span>
+        </div>
+
         <div id="controls">
 
-            <!-- Species Selection + Preview -->
-            <div class="panel-section">
-                <div class="panel-header">Species</div>
-                <div id="species-preview">Select a species</div>
-                <div class="control-row">
-                    <select id="species-select" style="width: 100%;"></select>
+            <!-- Preview — always visible above accordion -->
+            <div id="species-preview">Select a species</div>
+            <div id="active-species-label">Oak</div>
+
+            <!-- Accordion sections -->
+            <div class="accordion">
+
+                <!-- 1. SPECIES -->
+                <div class="accordion-banner expanded" data-section="species">
+                    <span class="accordion-label">Species</span>
+                    <span class="accordion-chevron">&#x25B8;</span>
                 </div>
-            </div>
-
-            <!-- Scatter Settings -->
-            <div class="panel-section">
-                <div class="panel-header">Scatter</div>
-
-                <div class="control-row">
-                    <label>Pattern</label>
-                    <select id="algorithm-select">
-                        <option value="clustered" selected>Clustered</option>
-                        <option value="poisson">Poisson Disk</option>
-                        <option value="density">Density</option>
-                        <option value="grid">Grid</option>
-                    </select>
-                </div>
-
-                <div class="slider-row">
-                    <div class="slider-label">
-                        <label>Per Group</label>
-                        <span class="slider-value" id="pergroup-value">1</span>
+                <div class="accordion-content" data-section="species">
+                    <div class="category-banner active" data-category="trees">
+                        <span class="category-label">Trees</span>
+                        <span class="category-count" id="cat-count-trees">0</span>
                     </div>
-                    <input type="range" id="pergroup-slider" min="1" max="10" value="1" step="1">
-                </div>
-
-                <div class="slider-row">
-                    <div class="slider-label">
-                        <label>Population</label>
-                        <span class="slider-value" id="population-value">25</span>
+                    <div class="category-content" data-category="trees">
+                        <select id="species-select-trees" class="category-select"></select>
                     </div>
-                    <input type="range" id="population-slider" min="1" max="200" value="25" step="1">
-                </div>
 
-                <div class="slider-row">
-                    <div class="slider-label">
-                        <label>Total</label>
-                        <span class="slider-value" id="total-value">25</span>
+                    <div class="category-banner" data-category="palms-ferns">
+                        <span class="category-label">Palms &amp; Ferns</span>
+                        <span class="category-count" id="cat-count-palms">0</span>
+                    </div>
+                    <div class="category-content" data-category="palms-ferns" style="display:none;">
+                        <select id="species-select-palms" class="category-select"></select>
+                    </div>
+
+                    <div class="category-banner" data-category="grass">
+                        <span class="category-label">Grass &amp; Ground Cover</span>
+                        <span class="category-count" id="cat-count-grass">0</span>
+                    </div>
+                    <div class="category-content" data-category="grass" style="display:none;">
+                        <select id="species-select-grass" class="category-select"></select>
+                    </div>
+
+                    <div class="category-banner" data-category="kelp">
+                        <span class="category-label">Underwater &amp; Kelp</span>
+                        <span class="category-count" id="cat-count-kelp">0</span>
+                    </div>
+                    <div class="category-content" data-category="kelp" style="display:none;">
+                        <select id="species-select-kelp" class="category-select"></select>
+                    </div>
+
+                    <div class="category-banner" data-category="rocks">
+                        <span class="category-label">Rocks</span>
+                        <span class="category-count" id="cat-count-rocks">0</span>
+                    </div>
+                    <div class="category-content" data-category="rocks" style="display:none;">
+                        <select id="species-select-rocks" class="category-select"></select>
                     </div>
                 </div>
 
-                <button class="panel-btn primary" id="btn-scatter">Scatter</button>
-                <button class="panel-btn" id="btn-clear" disabled>Clear</button>
-            </div>
-
-            <!-- Tools -->
-            <div class="panel-section">
-                <div class="panel-header">Tools</div>
-                <div class="tool-toggle">
-                    <button class="tool-btn active" id="tool-orbit" title="Orbit Camera">Orbit</button>
-                    <button class="tool-btn" id="tool-paint" title="Paint Brush">Paint</button>
-                    <button class="tool-btn" id="tool-erase" title="Eraser">Erase</button>
-                    <button class="tool-btn" id="tool-select" title="Select">Select</button>
+                <!-- 2. SCATTER -->
+                <div class="accordion-banner expanded" data-section="scatter">
+                    <span class="accordion-label">Scatter</span>
+                    <span class="accordion-chevron">&#x25B8;</span>
                 </div>
-                <div class="slider-row" id="brush-size-row" style="display: none;">
-                    <div class="slider-label">
-                        <label>Brush Size</label>
-                        <span class="slider-value" id="brush-size-value">10</span>
+                <div class="accordion-content" data-section="scatter">
+                    <div class="control-row">
+                        <label>Pattern</label>
+                        <select id="algorithm-select">
+                            <option value="clustered" selected>Clustered</option>
+                            <option value="poisson">Poisson Disk</option>
+                            <option value="density">Density</option>
+                            <option value="grid">Grid</option>
+                        </select>
                     </div>
-                    <input type="range" id="brush-size-slider" min="3" max="40" value="10" step="1">
+
+                    <div class="slider-row">
+                        <div class="slider-label">
+                            <label>Per Group</label>
+                            <span class="slider-value" id="pergroup-value">1</span>
+                        </div>
+                        <input type="range" id="pergroup-slider" min="1" max="10" value="1" step="1">
+                    </div>
+
+                    <div class="slider-row">
+                        <div class="slider-label">
+                            <label>Population</label>
+                            <span class="slider-value" id="population-value">25</span>
+                        </div>
+                        <input type="range" id="population-slider" min="1" max="200" value="25" step="1">
+                    </div>
+
+                    <div class="slider-row">
+                        <div class="slider-label">
+                            <label>Total</label>
+                            <span class="slider-value" id="total-value">25</span>
+                        </div>
+                    </div>
+
+                    <button class="panel-btn primary" id="btn-scatter">Scatter</button>
+                    <button class="panel-btn" id="btn-clear" disabled>Clear</button>
                 </div>
-            </div>
 
-            <!-- Terrain Info -->
-            <div class="panel-section">
-                <div class="panel-header">Terrain</div>
-                <div style="color: #666; font-size: 11px; line-height: 1.6;">
-                    256&times;256m &mdash; procedural elevation<br>
-                    Grid: 16m divisions
+                <!-- 3. TOOLS (collapsed by default) -->
+                <div class="accordion-banner" data-section="tools">
+                    <span class="accordion-label">Tools</span>
+                    <span class="accordion-chevron">&#x25B8;</span>
                 </div>
+                <div class="accordion-content" data-section="tools" style="display:none;">
+                    <div class="tool-toggle">
+                        <button class="tool-btn active" id="tool-orbit" title="Orbit Camera">Orbit</button>
+                        <button class="tool-btn" id="tool-paint" title="Paint Brush">Paint</button>
+                        <button class="tool-btn" id="tool-erase" title="Eraser">Erase</button>
+                        <button class="tool-btn" id="tool-select" title="Select">Select</button>
+                    </div>
+                    <div class="slider-row" id="brush-size-row" style="display: none;">
+                        <div class="slider-label">
+                            <label>Brush Size</label>
+                            <span class="slider-value" id="brush-size-value">10</span>
+                        </div>
+                        <input type="range" id="brush-size-slider" min="3" max="40" value="10" step="1">
+                    </div>
+                </div>
+
+                <!-- 4. TERRAIN (collapsed by default) -->
+                <div class="accordion-banner" data-section="terrain">
+                    <span class="accordion-label">Terrain</span>
+                    <span class="accordion-chevron">&#x25B8;</span>
+                </div>
+                <div class="accordion-content" data-section="terrain" style="display:none;">
+                    <div id="terrain-info" style="color: #666; font-size: 11px; line-height: 1.6;">
+                        256&times;256m &mdash; procedural elevation<br>
+                        Grid: 16m divisions
+                    </div>
+                </div>
+
             </div>
-
-            <!-- Actions — context-aware buttons -->
-            <div class="panel-section" id="actions-section">
-                <div class="panel-header">Actions</div>
-
-                <button class="action-btn action-btn--primary action-btn--world-only" id="btn-save-world" disabled>
-                    <span class="action-btn__text">
-                        <span class="action-btn__title">Save to World</span>
-                        <span class="action-btn__sub">Push vegetation to active instance</span>
-                    </span>
-                </button>
-
-                <button class="action-btn action-btn--earth action-btn--world-only" id="btn-open-terraformer">
-                    <span class="action-btn__text">
-                        <span class="action-btn__title">Open Terraformer</span>
-                        <span class="action-btn__sub">Edit terrain heightmap</span>
-                    </span>
-                </button>
-
-                <button class="action-btn action-btn--ghost action-btn--world-only" id="btn-return-world">
-                    <span class="action-btn__text">
-                        <span class="action-btn__title">Return to World</span>
-                        <span class="action-btn__sub">Go back without saving</span>
-                    </span>
-                </button>
-
-                <button class="action-btn action-btn--utility" id="btn-save-local" disabled>
-                    <span class="action-btn__text">
-                        <span class="action-btn__title">Save Locally</span>
-                        <span class="action-btn__sub">Download as JSON</span>
-                    </span>
-                </button>
-            </div>
-
         </div>
 
         <div id="stats">
@@ -822,6 +1371,86 @@
             Tris: <span id="stat-tris">0</span>
             <span style="color:#444;">|</span>
             Draws: <span id="stat-draws">0</span>
+        </div>
+
+        <!-- ================================================================
+             RIGHT DRAWER — World Integration (send vegetation back to poqpoq)
+             Only visible when embedded in World iframe.
+             ================================================================ -->
+        <div class="right-drawer" id="right-drawer">
+            <button class="drawer-toggle" id="drawer-toggle" title="Actions">
+                <span class="toggle-arrow">&#x25C0;</span>
+            </button>
+
+            <!-- Instance Context (World only) -->
+            <div class="drawer-section drawer-section--world-only">
+                <div class="drawer-header">World Instance</div>
+                <div class="context-info">
+                    <div class="context-row">
+                        <span class="context-icon">&#x1F30D;</span>
+                        <span class="context-label">Sim</span>
+                        <span class="context-value placeholder" id="ctx-instance-name">awaiting context...</span>
+                    </div>
+                    <div class="context-row">
+                        <span class="context-icon">&#x1F464;</span>
+                        <span class="context-label">User</span>
+                        <span class="context-value placeholder" id="ctx-user-name">awaiting context...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- World Actions (embedded only) -->
+            <div class="drawer-section drawer-section--world-only">
+                <div class="drawer-header">World Actions</div>
+
+                <!-- Hero button — Send to poqpoq -->
+                <button class="hero-btn hero-btn--landscaper" id="btn-save-world" disabled>
+                    <span class="hero-icon">&#x1F33F;</span>
+                    <span class="hero-text">
+                        <span class="hero-title">Send to poqpoq</span>
+                        <span class="hero-sub">Push vegetation to active instance</span>
+                    </span>
+                </button>
+
+                <!-- Manifest mode selector -->
+                <div class="control-row" style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #aaa;">Mode</label>
+                    <select id="manifest-mode" style="flex:1; padding:4px 8px; background:#1a1a1a; border:1px solid #444; border-radius:3px; color:#e0e0e0; font-size:11px;">
+                        <option value="replace" selected>Replace all vegetation</option>
+                        <option value="additive">Add to existing</option>
+                        <option value="subtractive">Remove matching</option>
+                    </select>
+                </div>
+
+                <button class="action-btn action-btn--earth" id="btn-open-terraformer">
+                    <span class="action-btn__text">
+                        <span class="action-btn__title">Open Terraformer</span>
+                        <span class="action-btn__sub">Edit terrain heightmap</span>
+                    </span>
+                </button>
+
+                <button class="action-btn action-btn--ghost" id="btn-return-world">
+                    <span class="action-btn__text">
+                        <span class="action-btn__title">Return to World</span>
+                        <span class="action-btn__sub">Go back without saving</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Local Actions (always visible) -->
+            <div class="drawer-section">
+                <div class="drawer-header">Export</div>
+                <button class="action-btn action-btn--utility" id="btn-save-local" disabled>
+                    <span class="action-btn__text">
+                        <span class="action-btn__title">Save Locally</span>
+                        <span class="action-btn__sub">Download as JSON</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Feedback dialog area (populated dynamically) -->
+            <div class="drawer-section" id="drawer-feedback" style="display: none;">
+            </div>
         </div>
 
     </div>

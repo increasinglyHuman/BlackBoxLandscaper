@@ -16,7 +16,7 @@ import { FernGenerator } from '../generators/FernGenerator.js'
 import { GrassGenerator } from '../generators/GrassGenerator.js'
 import { KelpGenerator } from '../generators/KelpGenerator.js'
 import { ScatterSystem } from '../scatter/ScatterSystem.js'
-import { ProceduralTerrainSampler } from '../scatter/TerrainSampler.js'
+import { ProceduralTerrainSampler, HeightmapTerrainSampler, type TerrainSampler } from '../scatter/TerrainSampler.js'
 import { landscaperMatrix } from './landscaper-matrix.js'
 import { BrushController } from './BrushController.js'
 import type { BrushMode } from './BrushController.js'
@@ -157,11 +157,11 @@ const groundMat = new THREE.MeshStandardMaterial({
     roughness: 0.9,
     metalness: 0.0,
 })
-const ground = new THREE.Mesh(groundGeo, groundMat)
+let ground = new THREE.Mesh(groundGeo, groundMat)
 ground.receiveShadow = true
 scene.add(ground)
 
-const gridHelper = new THREE.GridHelper(256, 16, 0x335533, 0x2a4a2a)
+let gridHelper: THREE.GridHelper = new THREE.GridHelper(256, 16, 0x335533, 0x2a4a2a)
 gridHelper.position.y = 0.05
 gridHelper.material.opacity = 0.3
 gridHelper.material.transparent = true
@@ -192,7 +192,6 @@ let totalTriangles = 0
 // UI ELEMENTS
 // ============================================================================
 
-const speciesSelect = document.getElementById('species-select') as HTMLSelectElement
 const algorithmSelect = document.getElementById('algorithm-select') as HTMLSelectElement
 const pergroupSlider = document.getElementById('pergroup-slider') as HTMLInputElement
 const populationSlider = document.getElementById('population-slider') as HTMLInputElement
@@ -206,36 +205,51 @@ const statTris = document.getElementById('stat-tris')!
 const statDraws = document.getElementById('stat-draws')!
 const speciesPreview = document.getElementById('species-preview')!
 
-// Populate species dropdown — grouped by generator type
+// Populate species category dropdowns
 const allSpecies = registry.getAll()
 const ezTreeSpecies = allSpecies.filter(s => s.generator === 'ez-tree')
 const palmFernSpecies = allSpecies.filter(s => s.generator === 'palm' || s.generator === 'fern')
 const grassSpecies = allSpecies.filter(s => s.generator === 'grass')
-const billboardSpecies = allSpecies.filter(s => s.generator === 'billboard')
 const kelpSpecies = allSpecies.filter(s => s.generator === 'kelp')
 const rockSpecies = allSpecies.filter(s => s.generator === 'rock')
 
-function addOptGroup(label: string, species: typeof allSpecies): void {
-    if (species.length === 0) return
-    const group = document.createElement('optgroup')
-    group.label = label
+const speciesSelectTrees = document.getElementById('species-select-trees') as HTMLSelectElement
+const speciesSelectPalms = document.getElementById('species-select-palms') as HTMLSelectElement
+const speciesSelectGrass = document.getElementById('species-select-grass') as HTMLSelectElement
+const speciesSelectKelp = document.getElementById('species-select-kelp') as HTMLSelectElement
+const speciesSelectRocks = document.getElementById('species-select-rocks') as HTMLSelectElement
+const activeSpeciesLabel = document.getElementById('active-species-label')!
+
+const categorySelects: HTMLSelectElement[] = [
+    speciesSelectTrees, speciesSelectPalms, speciesSelectGrass,
+    speciesSelectKelp, speciesSelectRocks,
+]
+
+function populateCategory(selectEl: HTMLSelectElement, species: typeof allSpecies, countId: string): void {
     for (const s of species) {
         const option = document.createElement('option')
         option.value = s.id
         option.textContent = s.displayName
-        group.appendChild(option)
+        selectEl.appendChild(option)
     }
-    speciesSelect.appendChild(group)
+    const countEl = document.getElementById(countId)
+    if (countEl) countEl.textContent = String(species.length)
 }
 
-addOptGroup('Trees', ezTreeSpecies)
-addOptGroup('Palms & Ferns', palmFernSpecies)
-addOptGroup('Grass & Ground Cover', grassSpecies)
-addOptGroup('Underwater & Kelp', kelpSpecies)
-addOptGroup('Beach & Billboard', billboardSpecies)
-addOptGroup('Rocks', rockSpecies)
+populateCategory(speciesSelectTrees, ezTreeSpecies, 'cat-count-trees')
+populateCategory(speciesSelectPalms, palmFernSpecies, 'cat-count-palms')
+populateCategory(speciesSelectGrass, grassSpecies, 'cat-count-grass')
+populateCategory(speciesSelectKelp, kelpSpecies, 'cat-count-kelp')
+populateCategory(speciesSelectRocks, rockSpecies, 'cat-count-rocks')
 
-speciesSelect.value = 'oak'
+speciesSelectTrees.value = 'oak'
+
+// Track which category dropdown is active
+let activeSpeciesSelect: HTMLSelectElement = speciesSelectTrees
+
+function getActiveSpeciesId(): string {
+    return activeSpeciesSelect.value
+}
 
 // ============================================================================
 // SLIDER WIRING
@@ -252,6 +266,71 @@ function updateTotalDisplay(): void {
 pergroupSlider.addEventListener('input', updateTotalDisplay)
 populationSlider.addEventListener('input', updateTotalDisplay)
 updateTotalDisplay()
+
+// ============================================================================
+// ACCORDION SYSTEM — collapsible left-panel sections + species categories
+// ============================================================================
+
+// Map category IDs to their select elements
+const categorySelectMap: Record<string, HTMLSelectElement> = {
+    'trees': speciesSelectTrees,
+    'palms-ferns': speciesSelectPalms,
+    'grass': speciesSelectGrass,
+    'kelp': speciesSelectKelp,
+    'rocks': speciesSelectRocks,
+}
+
+// Main accordion banners — allow multiple open simultaneously
+document.querySelectorAll<HTMLElement>('.accordion-banner').forEach(banner => {
+    banner.addEventListener('click', () => {
+        const section = banner.dataset.section!
+        const content = document.querySelector(
+            `.accordion-content[data-section="${section}"]`
+        ) as HTMLElement
+        if (!content) return
+
+        const isExpanded = banner.classList.contains('expanded')
+        if (isExpanded) {
+            banner.classList.remove('expanded')
+            content.style.display = 'none'
+        } else {
+            banner.classList.add('expanded')
+            content.style.display = 'flex'
+        }
+    })
+})
+
+// Species category banners — mutually exclusive within Species section
+document.querySelectorAll<HTMLElement>('.category-banner').forEach(catBanner => {
+    catBanner.addEventListener('click', () => {
+        const category = catBanner.dataset.category!
+
+        // Collapse all category contents
+        document.querySelectorAll<HTMLElement>('.category-banner').forEach(cb => {
+            cb.classList.remove('active')
+            const content = document.querySelector(
+                `.category-content[data-category="${cb.dataset.category}"]`
+            ) as HTMLElement
+            if (content) content.style.display = 'none'
+        })
+
+        // Expand clicked category
+        catBanner.classList.add('active')
+        const content = document.querySelector(
+            `.category-content[data-category="${category}"]`
+        ) as HTMLElement
+        if (content) content.style.display = ''
+
+        // Switch active species select to this category
+        const sel = categorySelectMap[category]
+        if (sel) {
+            activeSpeciesSelect = sel
+            const species = registry.getById(sel.value)
+            activeSpeciesLabel.textContent = species?.displayName ?? sel.value
+            updatePreview()
+        }
+    })
+})
 
 // ============================================================================
 // SPECIES PREVIEW — rotating ghost instance on selection change
@@ -289,9 +368,12 @@ function initPreview(): void {
 }
 
 function updatePreview(): void {
-    const speciesId = speciesSelect.value
+    const speciesId = getActiveSpeciesId()
     const species = registry.getById(speciesId)
     if (!species) return
+
+    // Update active species label below preview
+    activeSpeciesLabel.textContent = species.displayName
 
     const generator = generators.get(species.generator)
     if (!generator) return
@@ -332,7 +414,15 @@ function updatePreview(): void {
     animatePreview()
 }
 
-speciesSelect.addEventListener('change', updatePreview)
+// Wire up all category selects to update preview and become active
+for (const sel of categorySelects) {
+    sel.addEventListener('change', () => {
+        activeSpeciesSelect = sel
+        const species = registry.getById(sel.value)
+        activeSpeciesLabel.textContent = species?.displayName ?? sel.value
+        updatePreview()
+    })
+}
 setTimeout(updatePreview, 100)
 
 // ============================================================================
@@ -340,9 +430,9 @@ setTimeout(updatePreview, 100)
 // ============================================================================
 
 const scatterSystem = new ScatterSystem()
-const terrain = new ProceduralTerrainSampler()
+let terrain: TerrainSampler = new ProceduralTerrainSampler()
 
-function sampleGroundHeight(x: number, z: number): number {
+let sampleGroundHeight = (x: number, z: number): number => {
     return Math.sin(x * 0.05) * Math.cos(z * 0.05) * 1.5
 }
 
@@ -350,7 +440,7 @@ function doScatter(): void {
     const algorithm = algorithmSelect.value as DistributionAlgorithm
     const perGroup = parseInt(pergroupSlider.value) || 1
     const population = parseInt(populationSlider.value) || 25
-    const speciesId = speciesSelect.value
+    const speciesId = getActiveSpeciesId()
 
     const species = registry.getById(speciesId)
     if (!species) return
@@ -514,11 +604,21 @@ const brushSizeRow = document.getElementById('brush-size-row')!
 const brushSizeSlider = document.getElementById('brush-size-slider') as HTMLInputElement
 const brushSizeValue = document.getElementById('brush-size-value')!
 
+const modeIndicator = document.getElementById('mode-indicator')!
+const modeLabel = modeIndicator.querySelector('.mode-label')!
+const MODE_LABELS: Record<BrushMode, string> = {
+    orbit: 'Orbit', paint: 'Paint', erase: 'Erase', select: 'Select',
+}
+
 function syncToolUI(mode: BrushMode): void {
     for (const [key, btn] of Object.entries(toolButtons)) {
         btn.classList.toggle('active', key === mode)
     }
     brushSizeRow.style.display = (mode === 'paint' || mode === 'erase') ? '' : 'none'
+
+    // Update mode indicator badge
+    modeIndicator.dataset.mode = mode
+    modeLabel.textContent = MODE_LABELS[mode]
 }
 
 const brush = new BrushController({
@@ -529,7 +629,7 @@ const brush = new BrushController({
     ground,
     treeGroup,
     getSpecies: () => {
-        const species = registry.getById(speciesSelect.value)
+        const species = registry.getById(getActiveSpeciesId())
         if (!species) return null
         const generator = generators.get(species.generator)
         if (!generator) return null
@@ -570,7 +670,12 @@ const btnSaveLocal = document.getElementById('btn-save-local') as HTMLButtonElem
 interface LandscaperManifest {
     version: '1.0'
     timestamp: string
+    mode: 'replace' | 'additive' | 'subtractive'
     instanceId?: string
+    instanceName?: string
+    userId?: string
+    userDisplayName?: string
+    terrainAssetId?: string
     regionBounds: { type: 'bounds'; minX: number; maxX: number; minZ: number; maxZ: number }
     layers: Array<{
         layerId: string
@@ -582,7 +687,7 @@ interface LandscaperManifest {
             scale: { x: number; y: number; z: number }
         }>
     }>
-    stats: { treeCount: number; triangleCount: number }
+    stats: { treeCount: number; triangleCount: number; speciesCount: number }
 }
 
 function buildManifest(): LandscaperManifest {
@@ -614,13 +719,22 @@ function buildManifest(): LandscaperManifest {
         })
     }
 
+    const modeSelect = document.getElementById('manifest-mode') as HTMLSelectElement | null
+    const mode = (modeSelect?.value || 'replace') as 'replace' | 'additive' | 'subtractive'
+    const bounds = worldContext?.regionBounds || { minX: -128, maxX: 128, minZ: -128, maxZ: 128 }
+
     return {
         version: '1.0',
         timestamp: new Date().toISOString(),
+        mode,
         instanceId: worldContext?.instanceId,
-        regionBounds: { type: 'bounds', minX: -128, maxX: 128, minZ: -128, maxZ: 128 },
+        instanceName: worldContext?.instanceName,
+        userId: worldContext?.userId,
+        userDisplayName: worldContext?.userDisplayName,
+        terrainAssetId: worldContext?.terrainAssetId,
+        regionBounds: { type: 'bounds', ...bounds },
         layers,
-        stats: { treeCount, triangleCount: totalTriangles },
+        stats: { treeCount, triangleCount: totalTriangles, speciesCount: layers.length },
     }
 }
 
@@ -644,10 +758,295 @@ btnSaveLocal?.addEventListener('click', () => {
 })
 
 // ============================================================================
-// POSTMESSAGE BRIDGE (only when embedded in World)
+// WORLD CONTEXT — identity, instance, terrain state
 // ============================================================================
 
-let worldContext: { instanceId?: string; regionBounds?: any; existingManifest?: any } | null = null
+interface WorldContext {
+    instanceId: string
+    instanceName: string
+    userId: string
+    userDisplayName: string
+    regionBounds: { minX: number; maxX: number; minZ: number; maxZ: number }
+    terrainAssetId?: string
+    waterHeight?: number
+    terrainOrigin?: string
+    biome?: string
+}
+
+let worldContext: WorldContext | null = null
+
+/** Update the right drawer context display */
+function updateDrawerContext(): void {
+    const ctxName = document.getElementById('ctx-instance-name')
+    const ctxUser = document.getElementById('ctx-user-name')
+    if (worldContext) {
+        if (ctxName) {
+            ctxName.textContent = worldContext.instanceName || worldContext.instanceId
+            ctxName.classList.remove('placeholder')
+        }
+        if (ctxUser) {
+            ctxUser.textContent = worldContext.userDisplayName || worldContext.userId
+            ctxUser.classList.remove('placeholder')
+        }
+    }
+}
+
+/** Also check URL params as fallback (Terraformer pattern) */
+function parseUrlContext(): void {
+    const params = new URLSearchParams(window.location.search)
+    const instanceId = params.get('instance')
+    if (instanceId) {
+        worldContext = {
+            instanceId,
+            instanceName: params.get('name') || instanceId,
+            userId: params.get('userId') || '',
+            userDisplayName: params.get('displayName') || '',
+            regionBounds: {
+                minX: -128, maxX: 128, minZ: -128, maxZ: 128,
+            },
+        }
+        updateDrawerContext()
+        console.log('[Landscaper] Context from URL params:', worldContext)
+    }
+}
+
+// ============================================================================
+// TERRAIN LOADING — decode heightmap from postMessage (PNG or Float32Array)
+// ============================================================================
+
+/**
+ * Decode a base64 PNG heightmap into Float32Array of actual heights.
+ * PNG encodes heights as 16-bit RG channels (auto-detects 8-bit grayscale).
+ * Returns normalized 0-1 values scaled by elevation.
+ */
+function decodePNGHeightmap(
+    base64Data: string, elevation: number,
+): Promise<{ heights: Float32Array; width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+            const canvas = document.createElement('canvas')
+            canvas.width = img.width
+            canvas.height = img.height
+            const ctx = canvas.getContext('2d')!
+            ctx.drawImage(img, 0, 0)
+
+            const imageData = ctx.getImageData(0, 0, img.width, img.height)
+            const heights = new Float32Array(img.width * img.height)
+
+            // Auto-detect 16-bit (RG channels) vs 8-bit (grayscale)
+            let is16Bit = false
+            const sampleSize = Math.min(100, imageData.data.length / 4)
+            for (let i = 0; i < sampleSize; i++) {
+                if (imageData.data[i * 4 + 1] > 0 && imageData.data[i * 4] !== imageData.data[i * 4 + 1]) {
+                    is16Bit = true
+                    break
+                }
+            }
+
+            console.log(`[Landscaper] PNG heightmap: ${img.width}x${img.height}, ${is16Bit ? '16-bit RG' : '8-bit grayscale'}, elevation=${elevation}`)
+
+            for (let i = 0; i < heights.length; i++) {
+                if (is16Bit) {
+                    const hi = imageData.data[i * 4]
+                    const lo = imageData.data[i * 4 + 1]
+                    heights[i] = ((hi << 8) | lo) / 65535.0 * elevation
+                } else {
+                    heights[i] = imageData.data[i * 4] / 255.0 * elevation
+                }
+            }
+
+            URL.revokeObjectURL(img.src)
+            resolve({ heights, width: img.width, height: img.height })
+        }
+        img.onerror = () => reject(new Error('[Landscaper] Failed to decode PNG heightmap'))
+
+        const binary = atob(base64Data)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+        }
+        img.src = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }))
+    })
+}
+
+/**
+ * Load real terrain from postMessage payload.
+ *
+ * Handles three envelope formats:
+ *  - NEXUS response: { terrain_asset_id, terrain_data: {...BBT...} }
+ *  - Spec wrapper:   { terrainAssetId, terrain: {...heightmap_v1...} }
+ *  - Direct:         {...heightmap_v1...} or {...BBT...}
+ *
+ * Handles two data encodings:
+ *  - Base64-encoded PNG (BBT format, 16-bit RG channels)
+ *  - Base64-encoded Float32Array (canonical heightmap_v1)
+ */
+async function loadRealTerrain(terrainPayload: any): Promise<void> {
+    // --- Unwrap envelope ---
+    const terrainData = terrainPayload.terrain_data
+        || terrainPayload.terrain
+        || terrainPayload
+
+    // Store terrain asset ID
+    const assetId = terrainPayload.terrain_asset_id || terrainPayload.terrainAssetId
+    if (assetId && worldContext) {
+        worldContext.terrainAssetId = assetId
+    }
+
+    if (!terrainData?.data) {
+        console.warn('[Landscaper] Invalid terrain payload — missing heightmap data')
+        return
+    }
+
+    const dataStr = terrainData.data as string
+    const isCanonical = terrainData.format === 'heightmap_v1' || Array.isArray(terrainData.resolution)
+    const isPNG = dataStr.startsWith('iVBOR')
+
+    // --- Decode heightmap + determine grid dimensions ---
+    let heights: Float32Array
+    let cols: number
+    let rows: number
+
+    if (isPNG) {
+        // BBT format: base64-encoded PNG heightmap
+        const elevation = terrainData.terrain?.elevation
+            || terrainData.elevation
+            || terrainData.stats?.heightRange?.max
+            || 50
+        const decoded = await decodePNGHeightmap(dataStr, elevation)
+        heights = decoded.heights
+        cols = decoded.width
+        rows = decoded.height
+    } else if (isCanonical) {
+        // Canonical heightmap_v1: base64-encoded Float32Array
+        const bytes = Uint8Array.from(atob(dataStr), (c: string) => c.charCodeAt(0))
+        heights = new Float32Array(bytes.buffer)
+        ;[cols, rows] = terrainData.resolution
+    } else {
+        // Unknown format — try Float32Array with derived dimensions
+        const bytes = Uint8Array.from(atob(dataStr), (c: string) => c.charCodeAt(0))
+        heights = new Float32Array(bytes.buffer)
+        const subs = terrainData.terrain?.subdivisions || terrainData.subdivisions || 256
+        cols = subs + 1
+        rows = subs + 1
+    }
+
+    // --- Determine bounds ---
+    let bounds = terrainData.bounds
+    if (!bounds) {
+        const size = terrainData.terrain?.size || terrainData.size || 256
+        const half = size / 2
+        bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half }
+    }
+
+    const sizeX = bounds.maxX - bounds.minX
+    const sizeZ = bounds.maxZ - bounds.minZ
+
+    console.log(`[Landscaper] Loading terrain: ${cols}x${rows}, bounds: ${sizeX}x${sizeZ}m, ${heights.length} values, format: ${isPNG ? 'PNG' : 'Float32Array'}`)
+
+    // Remove existing ground + grid
+    scene.remove(ground)
+    ground.geometry.dispose()
+    scene.remove(gridHelper)
+
+    // Build new geometry from heightmap
+    const newGeo = new THREE.PlaneGeometry(sizeX, sizeZ, cols - 1, rows - 1)
+    newGeo.rotateX(-Math.PI / 2)
+
+    const terrainPosAttr = newGeo.getAttribute('position')
+    const expectedVerts = cols * rows
+
+    if (terrainPosAttr.count !== expectedVerts) {
+        console.warn(`[Landscaper] Vertex mismatch: geometry has ${terrainPosAttr.count}, heightmap has ${expectedVerts}`)
+    }
+
+    const vertCount = Math.min(terrainPosAttr.count, heights.length)
+    for (let i = 0; i < vertCount; i++) {
+        terrainPosAttr.setY(i, heights[i])
+    }
+    newGeo.computeVertexNormals()
+
+    // Apply splatmap texture if available (BBT terrain_data.splatmap.data)
+    if (terrainData.splatmap?.data) {
+        try {
+            const splatB64 = terrainData.splatmap.data as string
+            const splatBin = atob(splatB64)
+            const splatBytes = new Uint8Array(splatBin.length)
+            for (let i = 0; i < splatBin.length; i++) {
+                splatBytes[i] = splatBin.charCodeAt(i)
+            }
+            const splatBlob = new Blob([splatBytes], { type: 'image/png' })
+            const splatImg = new Image()
+            splatImg.onload = () => {
+                const tex = new THREE.CanvasTexture(splatImg)
+                tex.colorSpace = THREE.SRGBColorSpace
+                tex.wrapS = THREE.ClampToEdgeWrapping
+                tex.wrapT = THREE.ClampToEdgeWrapping
+                groundMat.map = tex
+                groundMat.color.set(0xffffff) // let texture color through
+                groundMat.needsUpdate = true
+                URL.revokeObjectURL(splatImg.src)
+                console.log('[Landscaper] Splatmap texture applied')
+            }
+            splatImg.src = URL.createObjectURL(splatBlob)
+        } catch (e) {
+            console.warn('[Landscaper] Failed to decode splatmap:', e)
+        }
+    }
+
+    // Replace ground mesh
+    ground = new THREE.Mesh(newGeo, groundMat)
+    ground.receiveShadow = true
+    scene.add(ground)
+
+    // Rebuild grid helper
+    const gridDivisions = Math.max(8, Math.round(sizeX / 16))
+    gridHelper = new THREE.GridHelper(Math.max(sizeX, sizeZ), gridDivisions, 0x335533, 0x2a4a2a)
+    gridHelper.position.y = 0.05
+    ;(gridHelper.material as THREE.Material).opacity = 0.3
+    ;(gridHelper.material as THREE.Material).transparent = true
+    scene.add(gridHelper)
+
+    // Update terrain sampler for scatter system + brush
+    // offsetX/Z = world-space origin (min corner) of the heightmap grid
+    const regionSize = Math.max(sizeX, sizeZ)
+    const heightmapSampler = new HeightmapTerrainSampler(heights, cols, regionSize, bounds.minX, bounds.minZ)
+
+    // Replace both the scatter terrain reference and the height sampling function
+    terrain = heightmapSampler
+    sampleGroundHeight = (x: number, z: number) => heightmapSampler.getHeight(x, z)
+
+    // Update brush controller's ground reference
+    brush.updateGround(ground)
+
+    // Update terrain info in left panel
+    const terrainInfo = document.getElementById('terrain-info')
+    if (terrainInfo) {
+        const biome = terrainData.terrain?.biome || terrainData.biome || 'custom'
+        const hRange = terrainData.stats?.heightRange || terrainData.heightRange
+        const rangeStr = hRange ? ` (${Number(hRange.min).toFixed(1)}–${Number(hRange.max).toFixed(1)}m)` : ''
+
+        // Show provenance from init-context
+        const origin = worldContext?.terrainOrigin
+        const originStr = origin && origin !== 'none'
+            ? `<br><span style="color:#888">${origin === 'bbt' ? 'Created in Terraformer' : origin} · active in poqpoq</span>`
+            : ''
+
+        // Show water height if available
+        const waterStr = worldContext?.waterHeight != null && worldContext.waterHeight !== 0
+            ? `<br>Water: ${Number(worldContext.waterHeight).toFixed(1)}m`
+            : ''
+
+        terrainInfo.innerHTML = `${sizeX}&times;${sizeZ}m &mdash; ${biome} terrain${rangeStr}${originStr}${waterStr}<br>Grid: ${gridDivisions} divisions`
+    }
+
+    console.log(`[Landscaper] Terrain loaded successfully`)
+}
+
+// ============================================================================
+// POSTMESSAGE BRIDGE (only when embedded in World)
+// ============================================================================
 
 function setupPostMessageBridge(): void {
     window.addEventListener('message', (event: MessageEvent) => {
@@ -661,19 +1060,26 @@ function setupPostMessageBridge(): void {
         switch (msg.type) {
             case 'init-context':
                 console.log('[Landscaper] Received context from World:', msg.payload)
-                worldContext = msg.payload
+                worldContext = msg.payload as WorldContext
+                updateDrawerContext()
                 break
             case 'terrain-data':
-                console.log('[Landscaper] Received terrain data')
+                console.log('[Landscaper] Received terrain data from World')
+                loadRealTerrain(msg.payload).catch(err => {
+                    console.error('[Landscaper] Failed to load terrain:', err)
+                })
                 break
         }
     })
+
+    // Also check URL params (Terraformer pattern fallback)
+    parseUrlContext()
 
     // Announce readiness to World parent
     window.parent.postMessage(JSON.stringify({
         source: 'blackbox-landscaper',
         type: 'ready',
-        payload: { version: '0.1.0' },
+        payload: { version: '0.2.0' },
     }), '*')
 }
 
@@ -681,14 +1087,67 @@ if (isEmbedded) {
     setupPostMessageBridge()
 }
 
-// Save to World
+// ============================================================================
+// RIGHT DRAWER — toggle + world action handlers
+// ============================================================================
+
+const rightDrawer = document.getElementById('right-drawer')
+const drawerToggle = document.getElementById('drawer-toggle')
+const drawerFeedback = document.getElementById('drawer-feedback')
+
+drawerToggle?.addEventListener('click', () => {
+    rightDrawer?.classList.toggle('open')
+})
+
+// Auto-open drawer when embedded so user sees World integration immediately
+if (isEmbedded) {
+    rightDrawer?.classList.add('open')
+}
+
+/** Show inline success/error dialog in the drawer */
+function showDrawerDialog(type: 'success' | 'error', title: string, message: string, details?: string[]): void {
+    if (!drawerFeedback) return
+
+    const detailRows = (details || []).map(d => `<div class="dialog-detail-row">${d}</div>`).join('')
+
+    drawerFeedback.innerHTML = `
+        <div class="drawer-dialog drawer-dialog--${type} visible">
+            <div class="dialog-icon">${type === 'success' ? '&#x2714;' : '&#x26A0;'}</div>
+            <div class="dialog-title">${title}</div>
+            <div class="dialog-message">${message}</div>
+            ${detailRows ? `<div class="dialog-details">${detailRows}</div>` : ''}
+            <div class="dialog-actions">
+                <button class="dialog-btn-done" id="dialog-dismiss">Done</button>
+            </div>
+        </div>
+    `
+    drawerFeedback.style.display = ''
+    document.getElementById('dialog-dismiss')?.addEventListener('click', () => {
+        drawerFeedback.style.display = 'none'
+        drawerFeedback.innerHTML = ''
+    })
+}
+
+// Send to poqpoq (hero button)
 btnSaveWorld?.addEventListener('click', () => {
+    if (!worldContext?.instanceId) {
+        showDrawerDialog('error', 'No World Context', 'Cannot send vegetation — no instance context received from poqpoq World.')
+        return
+    }
+
     const manifest = buildManifest()
     window.parent.postMessage(JSON.stringify({
         source: 'blackbox-landscaper',
         type: 'save-manifest',
         payload: { manifest },
     }), '*')
+
+    const name = worldContext.instanceName || worldContext.instanceId
+    showDrawerDialog('success', 'Vegetation Sent', `Your vegetation for <strong>${name}</strong> has been sent to poqpoq World.`, [
+        `&#x1F333; ${manifest.stats.treeCount} objects across ${manifest.stats.speciesCount} species`,
+        `&#x1F4D0; ${manifest.stats.triangleCount.toLocaleString()} triangles`,
+        `&#x1F4CB; Mode: ${manifest.mode}`,
+    ])
 })
 
 // Open Terraformer
@@ -704,7 +1163,7 @@ btnOpenTerraformer?.addEventListener('click', () => {
 btnReturnWorld?.addEventListener('click', () => {
     window.parent.postMessage(JSON.stringify({
         source: 'blackbox-landscaper',
-        type: 'close',
+        type: 'tool_close',
         payload: {},
     }), '*')
 })
@@ -722,8 +1181,10 @@ function animate(): void {
 
 animate()
 
-// Generate an initial scatter so the scene isn't empty
-doScatter()
+// Generate an initial scatter so the scene isn't empty (standalone only)
+if (!isEmbedded) {
+    doScatter()
+}
 
 console.log(`BlackBox Landscaper — Dev Harness`)
 console.log(`Species registered: ${registry.count}`)
@@ -731,7 +1192,7 @@ console.log(`  ez-tree: ${ezTreeSpecies.length}`)
 console.log(`  palm: ${registry.getByGenerator('palm').length}`)
 console.log(`  fern: ${registry.getByGenerator('fern').length}`)
 console.log(`  grass: ${grassSpecies.length}`)
-console.log(`  billboard: ${billboardSpecies.length}`)
+console.log(`  kelp: ${kelpSpecies.length}`)
 console.log(`  rock: ${rockSpecies.length}`)
 
 } // end initScene

@@ -163,6 +163,11 @@ export class BrushController {
         this.cursor.geometry = geo
     }
 
+    /** Replace the ground mesh reference (e.g. when real terrain loads) */
+    updateGround(newGround: THREE.Mesh): void {
+        this.ground = newGround
+    }
+
     // ========================================================================
     // POINTER EVENTS
     // ========================================================================
