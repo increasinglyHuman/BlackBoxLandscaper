@@ -506,10 +506,11 @@ function doScatter(): void {
             )
 
             const groupScale = 0.85 + Math.random() * 0.3
+            const base = species.baseScale ?? 1
             output.object.scale.set(
-                inst.scale.x * groupScale,
-                inst.scale.y * groupScale,
-                inst.scale.z * groupScale
+                inst.scale.x * groupScale * base,
+                inst.scale.y * groupScale * base,
+                inst.scale.z * groupScale * base
             )
 
             output.object.userData = {

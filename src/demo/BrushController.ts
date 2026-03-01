@@ -315,7 +315,8 @@ export class BrushController {
             output.object.position.set(px, py, pz)
             output.object.rotation.y = Math.random() * Math.PI * 2
 
-            const scale = 0.8 + Math.random() * 0.4
+            const variation = 0.8 + Math.random() * 0.4
+            const scale = (species.baseScale ?? 1) * variation
             output.object.scale.setScalar(scale)
 
             output.object.userData = {

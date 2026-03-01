@@ -35,7 +35,8 @@
     "minElevation": 0,
     "maxElevation": 800,
     "preferredSlope": [0, 35],
-    "spacing": { "min": 4, "max": 12 }
+    "spacing": { "min": 4, "max": 12 },
+    "baseScale": 0.35
   },
   {
     "id": "oak",
@@ -71,7 +72,8 @@
     "minElevation": 0,
     "maxElevation": 500,
     "preferredSlope": [0, 30],
-    "spacing": { "min": 5, "max": 15 }
+    "spacing": { "min": 5, "max": 15 },
+    "baseScale": 0.25
   },
   {
     "id": "tropical_bush_1",
@@ -107,7 +109,8 @@
     "minElevation": 0,
     "maxElevation": 200,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 2, "max": 6 }
+    "spacing": { "min": 2, "max": 6 },
+    "baseScale": 0.20
   },
   {
     "id": "palm_1",
@@ -128,7 +131,8 @@
     "minElevation": 0,
     "maxElevation": 100,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 4, "max": 10 }
+    "spacing": { "min": 4, "max": 10 },
+    "baseScale": 0.80
   },
   {
     "id": "dogwood",
@@ -164,7 +168,8 @@
     "minElevation": 0,
     "maxElevation": 400,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 4, "max": 10 }
+    "spacing": { "min": 4, "max": 10 },
+    "baseScale": 0.25
   },
   {
     "id": "tropical_bush_2",
@@ -200,7 +205,8 @@
     "minElevation": 0,
     "maxElevation": 200,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 1.5, "max": 5 }
+    "spacing": { "min": 1.5, "max": 5 },
+    "baseScale": 0.20
   },
   {
     "id": "palm_2",
@@ -221,7 +227,8 @@
     "minElevation": 0,
     "maxElevation": 80,
     "preferredSlope": [0, 10],
-    "spacing": { "min": 5, "max": 12 }
+    "spacing": { "min": 5, "max": 12 },
+    "baseScale": 0.75
   },
   {
     "id": "cypress_1",
@@ -257,7 +264,8 @@
     "minElevation": 0,
     "maxElevation": 600,
     "preferredSlope": [0, 30],
-    "spacing": { "min": 3, "max": 8 }
+    "spacing": { "min": 3, "max": 8 },
+    "baseScale": 0.40
   },
   {
     "id": "cypress_2",
@@ -293,7 +301,8 @@
     "minElevation": 0,
     "maxElevation": 600,
     "preferredSlope": [0, 30],
-    "spacing": { "min": 3, "max": 8 }
+    "spacing": { "min": 3, "max": 8 },
+    "baseScale": 0.38
   },
   {
     "id": "pine_2",
@@ -331,7 +340,8 @@
     "minElevation": 0,
     "maxElevation": 900,
     "preferredSlope": [0, 40],
-    "spacing": { "min": 5, "max": 14 }
+    "spacing": { "min": 5, "max": 14 },
+    "baseScale": 0.40
   },
   {
     "id": "plumeria",
@@ -367,7 +377,8 @@
     "minElevation": 0,
     "maxElevation": 200,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 3, "max": 8 }
+    "spacing": { "min": 3, "max": 8 },
+    "baseScale": 0.25
   },
   {
     "id": "winter_aspen",
@@ -403,7 +414,8 @@
     "minElevation": 100,
     "maxElevation": 700,
     "preferredSlope": [0, 30],
-    "spacing": { "min": 3, "max": 8 }
+    "spacing": { "min": 3, "max": 8 },
+    "baseScale": 0.35
   },
   {
     "id": "winter_pine_1",
@@ -441,7 +453,8 @@
     "minElevation": 200,
     "maxElevation": 1000,
     "preferredSlope": [0, 35],
-    "spacing": { "min": 5, "max": 12 }
+    "spacing": { "min": 5, "max": 12 },
+    "baseScale": 0.40
   },
   {
     "id": "winter_pine_2",
@@ -479,7 +492,8 @@
     "minElevation": 200,
     "maxElevation": 1000,
     "preferredSlope": [0, 35],
-    "spacing": { "min": 5, "max": 14 }
+    "spacing": { "min": 5, "max": 14 },
+    "baseScale": 0.38
   },
   {
     "id": "eucalyptus",
@@ -515,7 +529,8 @@
     "minElevation": 0,
     "maxElevation": 400,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 6, "max": 18 }
+    "spacing": { "min": 6, "max": 18 },
+    "baseScale": 0.40
   },
   {
     "id": "fern",
@@ -534,7 +549,8 @@
     "minElevation": 0,
     "maxElevation": 300,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 0.5, "max": 2 }
+    "spacing": { "min": 0.5, "max": 2 },
+    "baseScale": 0.25
   },
   {
     "id": "jurassic_fern",
@@ -553,7 +569,8 @@
     "minElevation": 0,
     "maxElevation": 200,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 2, "max": 6 }
+    "spacing": { "min": 2, "max": 6 },
+    "baseScale": 0.30
   },
   {
     "id": "jurassic_fern_giant",
@@ -572,7 +589,8 @@
     "minElevation": 0,
     "maxElevation": 150,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 4, "max": 10 }
+    "spacing": { "min": 4, "max": 10 },
+    "baseScale": 0.35
   },
   {
     "id": "red_maple",
@@ -608,7 +626,8 @@
     "minElevation": 0,
     "maxElevation": 500,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 5, "max": 14 }
+    "spacing": { "min": 5, "max": 14 },
+    "baseScale": 0.27
   },
   {
     "id": "japanese_maple",
@@ -644,7 +663,8 @@
     "minElevation": 0,
     "maxElevation": 400,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 3, "max": 8 }
+    "spacing": { "min": 3, "max": 8 },
+    "baseScale": 0.25
   },
   {
     "id": "silver_birch",
@@ -681,7 +701,8 @@
     "minElevation": 0,
     "maxElevation": 600,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 3, "max": 10 }
+    "spacing": { "min": 3, "max": 10 },
+    "baseScale": 0.28
   },
   {
     "id": "weeping_willow",
@@ -717,7 +738,8 @@
     "minElevation": 0,
     "maxElevation": 300,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 8, "max": 20 }
+    "spacing": { "min": 8, "max": 20 },
+    "baseScale": 0.22
   },
   {
     "id": "giant_sequoia",
@@ -755,7 +777,8 @@
     "minElevation": 100,
     "maxElevation": 1200,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 10, "max": 25 }
+    "spacing": { "min": 10, "max": 25 },
+    "baseScale": 0.55
   },
   {
     "id": "scots_pine",
@@ -793,7 +816,8 @@
     "minElevation": 0,
     "maxElevation": 900,
     "preferredSlope": [0, 35],
-    "spacing": { "min": 5, "max": 15 }
+    "spacing": { "min": 5, "max": 15 },
+    "baseScale": 0.35
   },
   {
     "id": "autumn_oak",
@@ -829,7 +853,8 @@
     "minElevation": 0,
     "maxElevation": 500,
     "preferredSlope": [0, 30],
-    "spacing": { "min": 5, "max": 15 }
+    "spacing": { "min": 5, "max": 15 },
+    "baseScale": 0.25
   },
   {
     "id": "kelp_1",
@@ -851,7 +876,8 @@
     "minElevation": -100,
     "maxElevation": 0,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 1, "max": 4 }
+    "spacing": { "min": 1, "max": 4 },
+    "baseScale": 1.0
   },
   {
     "id": "eelgrass",
@@ -873,7 +899,8 @@
     "minElevation": -50,
     "maxElevation": 0,
     "preferredSlope": [0, 10],
-    "spacing": { "min": 0.5, "max": 2 }
+    "spacing": { "min": 0.5, "max": 2 },
+    "baseScale": 1.0
   },
   {
     "id": "sea_sword",
@@ -895,7 +922,8 @@
     "minElevation": -80,
     "maxElevation": 0,
     "preferredSlope": [0, 10],
-    "spacing": { "min": 1, "max": 3 }
+    "spacing": { "min": 1, "max": 3 },
+    "baseScale": 1.0
   },
   {
     "id": "beach_grass",
@@ -917,7 +945,8 @@
     "minElevation": 0,
     "maxElevation": 30,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 0.3, "max": 1.5 }
+    "spacing": { "min": 0.3, "max": 1.5 },
+    "baseScale": 1.0
   },
   {
     "id": "kelp_2",
@@ -939,7 +968,8 @@
     "minElevation": -100,
     "maxElevation": 0,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 1.5, "max": 5 }
+    "spacing": { "min": 1.5, "max": 5 },
+    "baseScale": 1.0
   },
   {
     "id": "boulder",
@@ -964,7 +994,8 @@
     "minElevation": 0,
     "maxElevation": 1000,
     "preferredSlope": [0, 45],
-    "spacing": { "min": 3, "max": 10 }
+    "spacing": { "min": 3, "max": 10 },
+    "baseScale": 1.0
   },
   {
     "id": "river_stone",
@@ -991,7 +1022,8 @@
     "minElevation": 0,
     "maxElevation": 300,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 1.5, "max": 5 }
+    "spacing": { "min": 1.5, "max": 5 },
+    "baseScale": 1.0
   },
   {
     "id": "cliff_rock",
@@ -1016,7 +1048,8 @@
     "minElevation": 50,
     "maxElevation": 1500,
     "preferredSlope": [10, 60],
-    "spacing": { "min": 6, "max": 18 }
+    "spacing": { "min": 6, "max": 18 },
+    "baseScale": 1.0
   },
   {
     "id": "mossy_rock",
@@ -1041,7 +1074,8 @@
     "minElevation": 0,
     "maxElevation": 500,
     "preferredSlope": [0, 30],
-    "spacing": { "min": 2, "max": 8 }
+    "spacing": { "min": 2, "max": 8 },
+    "baseScale": 1.0
   },
   {
     "id": "slab",
@@ -1066,7 +1100,8 @@
     "minElevation": 0,
     "maxElevation": 800,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 2, "max": 7 }
+    "spacing": { "min": 2, "max": 7 },
+    "baseScale": 1.0
   },
   {
     "id": "meadow_grass",
@@ -1088,7 +1123,8 @@
     "minElevation": 0,
     "maxElevation": 400,
     "preferredSlope": [0, 25],
-    "spacing": { "min": 0.4, "max": 1.5 }
+    "spacing": { "min": 0.4, "max": 1.5 },
+    "baseScale": 1.0
   },
   {
     "id": "tall_grass",
@@ -1110,7 +1146,8 @@
     "minElevation": 0,
     "maxElevation": 300,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 0.5, "max": 2.0 }
+    "spacing": { "min": 0.5, "max": 2.0 },
+    "baseScale": 1.0
   },
   {
     "id": "lawn_grass",
@@ -1132,7 +1169,8 @@
     "minElevation": 0,
     "maxElevation": 200,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 0.2, "max": 0.8 }
+    "spacing": { "min": 0.2, "max": 0.8 },
+    "baseScale": 1.0
   },
   {
     "id": "wildflower_grass",
@@ -1156,7 +1194,8 @@
     "minElevation": 0,
     "maxElevation": 400,
     "preferredSlope": [0, 20],
-    "spacing": { "min": 0.4, "max": 1.5 }
+    "spacing": { "min": 0.4, "max": 1.5 },
+    "baseScale": 1.0
   },
   {
     "id": "coconut_palm",
@@ -1183,6 +1222,7 @@
     "minElevation": 0,
     "maxElevation": 80,
     "preferredSlope": [0, 15],
-    "spacing": { "min": 4, "max": 10 }
+    "spacing": { "min": 4, "max": 10 },
+    "baseScale": 0.80
   }
 ]

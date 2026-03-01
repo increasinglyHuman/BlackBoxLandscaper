@@ -139,6 +139,8 @@ export interface SpeciesDefinition {
     preferredSlope: [number, number]
     /** Spacing constraints */
     spacing: { min: number; max: number }
+    /** Base scale factor for realistic world-space sizing (default 1.0) */
+    baseScale?: number
 }
 
 // ============================================================================
