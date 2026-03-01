@@ -967,8 +967,10 @@ async function loadRealTerrain(terrainPayload: any): Promise<void> {
         let minHeight = 0
         let maxHeight = elevation
         if (heightRange && heightRange.max > 1.5) {
-            minHeight = heightRange.min ?? 0
-            maxHeight = heightRange.max
+            // World-space: ground the terrain at Y=0 for Landscaper preview.
+            // Use just the range (max-min) so the shape is correct but sits at origin.
+            // VegetationConsumer re-samples Y from World's terrain, so offset is safe.
+            maxHeight = heightRange.max - (heightRange.min ?? 0)
         }
 
         const decoded = await decodePNGHeightmap(dataStr, minHeight, maxHeight)
