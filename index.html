@@ -410,6 +410,37 @@
             box-shadow: 0 4px 12px rgba(255, 170, 51, 0.2);
         }
 
+        /* ── Terrain loading overlay ── */
+        #terrain-loading {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.92);
+            backdrop-filter: blur(10px);
+            color: #66cc88;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: 1px solid rgba(102, 204, 136, 0.25);
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 15;
+            pointer-events: none;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        #terrain-loading.visible { display: flex; }
+        #terrain-loading .spinner {
+            width: 14px; height: 14px;
+            border: 2px solid rgba(102, 204, 136, 0.2);
+            border-top-color: #66cc88;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         .accordion-banner {
             padding: 10px 14px;
             background: #222;
@@ -1228,6 +1259,12 @@
         <div id="mode-indicator">
             <span class="mode-label">Orbit</span>
             <span class="mode-hint">SPACE to cycle</span>
+        </div>
+
+        <!-- Terrain loading indicator (embedded mode) -->
+        <div id="terrain-loading">
+            <div class="spinner"></div>
+            <span id="terrain-loading-msg">Loading terrain from World...</span>
         </div>
 
         <div id="controls">

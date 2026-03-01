@@ -514,6 +514,7 @@ function doScatter(): void {
 
             output.object.userData = {
                 speciesId: species.id,
+                seed,
                 triangleCount: output.triangleCount,
             }
 
@@ -667,6 +668,21 @@ const btnOpenTerraformer = document.getElementById('btn-open-terraformer') as HT
 const btnReturnWorld = document.getElementById('btn-return-world') as HTMLButtonElement | null
 const btnSaveLocal = document.getElementById('btn-save-local') as HTMLButtonElement | null
 
+// ── Manifest types — matches VegetationConsumer.VegetationLayer format ───────
+
+interface VegetationPreset {
+    name: string       // Species ID (for display/logging)
+    seed?: number      // Base seed from preset
+    config?: any       // Full ez-tree preset config (inline, self-contained)
+}
+
+interface VegetationLayer {
+    id: string
+    presets: VegetationPreset[]
+    /** Compact placements: [presetIdx, x, y, z, rotY, scale, seedOffset] */
+    placements: number[][]
+}
+
 interface LandscaperManifest {
     version: '1.0'
     timestamp: string
@@ -677,45 +693,72 @@ interface LandscaperManifest {
     userDisplayName?: string
     terrainAssetId?: string
     regionBounds: { type: 'bounds'; minX: number; maxX: number; minZ: number; maxZ: number }
-    layers: Array<{
-        layerId: string
-        speciesId: string
-        algorithm: string
-        instances: Array<{
-            position: { x: number; y: number; z: number }
-            rotation: { x: number; y: number; z: number }
-            scale: { x: number; y: number; z: number }
-        }>
-    }>
+    vegetation_layers: VegetationLayer[]
     stats: { treeCount: number; triangleCount: number; speciesCount: number }
 }
 
+/**
+ * Recursively convert hex color strings ("0x448844") to numbers for tint fields.
+ * opensim-species presets store tints as strings; BabylonTree expects numbers.
+ */
+function resolvePresetColors(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(obj)) {
+        if (key === 'tint' && typeof value === 'string') {
+            result[key] = parseInt(value.replace('0x', ''), 16)
+        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            result[key] = resolvePresetColors(value as Record<string, unknown>)
+        } else {
+            result[key] = value
+        }
+    }
+    return result
+}
+
 function buildManifest(): LandscaperManifest {
-    const instancesBySpecies = new Map<string, Array<{
-        position: { x: number; y: number; z: number }
-        rotation: { x: number; y: number; z: number }
-        scale: { x: number; y: number; z: number }
-    }>>()
+    // Group trees by species, collecting compact placement data
+    const speciesGroups = new Map<string, {
+        species: any  // SpeciesDefinition
+        placements: number[][]
+    }>()
 
     for (const child of treeGroup.children) {
         const speciesId = child.userData.speciesId ?? 'unknown'
-        if (!instancesBySpecies.has(speciesId)) {
-            instancesBySpecies.set(speciesId, [])
+        const seed = child.userData.seed ?? 0
+
+        if (!speciesGroups.has(speciesId)) {
+            const species = registry.getById(speciesId)
+            speciesGroups.set(speciesId, { species, placements: [] })
         }
-        instancesBySpecies.get(speciesId)!.push({
-            position: { x: child.position.x, y: child.position.y, z: child.position.z },
-            rotation: { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z },
-            scale: { x: child.scale.x, y: child.scale.y, z: child.scale.z },
-        })
+
+        // Uniform scale (average of xyz) for compact encoding
+        const avgScale = (child.scale.x + child.scale.y + child.scale.z) / 3
+
+        speciesGroups.get(speciesId)!.placements.push([
+            0,                   // presetIdx (one preset per layer, always 0)
+            child.position.x,
+            child.position.y,
+            child.position.z,
+            child.rotation.y,
+            avgScale,
+            seed,                // seedOffset = per-tree seed
+        ])
     }
 
-    const layers: LandscaperManifest['layers'] = []
-    for (const [speciesId, instances] of instancesBySpecies) {
-        layers.push({
-            layerId: `layer-${speciesId}`,
-            speciesId,
-            algorithm: algorithmSelect.value,
-            instances,
+    // Build vegetation layers in VegetationConsumer format
+    const vegetation_layers: VegetationLayer[] = []
+    for (const [speciesId, group] of speciesGroups) {
+        // Resolve hex string tints → numbers before serializing to manifest
+        const rawConfig = group.species?.preset
+        const presets: VegetationPreset[] = [{
+            name: speciesId,
+            config: rawConfig ? resolvePresetColors(rawConfig) : undefined,
+        }]
+
+        vegetation_layers.push({
+            id: `layer-${speciesId}`,
+            presets,
+            placements: group.placements,
         })
     }
 
@@ -733,8 +776,8 @@ function buildManifest(): LandscaperManifest {
         userDisplayName: worldContext?.userDisplayName,
         terrainAssetId: worldContext?.terrainAssetId,
         regionBounds: { type: 'bounds', ...bounds },
-        layers,
-        stats: { treeCount, triangleCount: totalTriangles, speciesCount: layers.length },
+        vegetation_layers,
+        stats: { treeCount, triangleCount: totalTriangles, speciesCount: vegetation_layers.length },
     }
 }
 
@@ -968,6 +1011,8 @@ async function loadRealTerrain(terrainPayload: any): Promise<void> {
     newGeo.computeVertexNormals()
 
     // Apply splatmap texture if available (BBT terrain_data.splatmap.data)
+    // Splatmap is a blend map: R=low(grass), G=mid(dirt), B=high(rock), peak=1-(R+G+B)/255
+    // Composite into a visible color image for the Landscaper preview
     if (terrainData.splatmap?.data) {
         try {
             const splatB64 = terrainData.splatmap.data as string
@@ -979,15 +1024,57 @@ async function loadRealTerrain(terrainPayload: any): Promise<void> {
             const splatBlob = new Blob([splatBytes], { type: 'image/png' })
             const splatImg = new Image()
             splatImg.onload = () => {
-                const tex = new THREE.CanvasTexture(splatImg)
+                // Decode splatmap pixels
+                const cv = document.createElement('canvas')
+                cv.width = splatImg.width
+                cv.height = splatImg.height
+                const ctx = cv.getContext('2d')!
+                ctx.drawImage(splatImg, 0, 0)
+                const imgData = ctx.getImageData(0, 0, cv.width, cv.height)
+                const px = imgData.data
+
+                // Biome layer colors (typical BBT terrain)
+                const biome = (terrainData.terrain?.biome || terrainData.biome || 'grassland') as string
+                let lowR = 74, lowG = 124, lowB = 63    // grass green
+                let midR = 139, midG = 115, midB = 85   // dirt brown
+                let hiR = 136, hiG = 136, hiB = 136     // rock gray
+                let pkR = 220, pkG = 220, pkB = 225     // snow white
+
+                if (biome === 'desert' || biome === 'arid') {
+                    lowR = 194; lowG = 178; lowB = 128  // sand
+                    midR = 160; midG = 120; midB = 80   // dry dirt
+                    hiR = 120; hiG = 100; hiB = 80      // sandstone
+                    pkR = 200; pkG = 180; pkB = 140     // light sand
+                } else if (biome === 'arctic' || biome === 'tundra' || biome === 'snow') {
+                    lowR = 180; lowG = 200; lowB = 180  // pale grass
+                    midR = 160; midG = 160; midB = 170  // frozen dirt
+                    hiR = 100; hiG = 100; hiB = 110     // dark rock
+                    pkR = 240; pkG = 245; pkB = 250     // snow
+                }
+
+                // Composite: blend layer colors by splatmap weights
+                for (let i = 0; i < px.length; i += 4) {
+                    const r = px[i]! / 255    // low weight
+                    const g = px[i+1]! / 255  // mid weight
+                    const b = px[i+2]! / 255  // high weight
+                    const pk = Math.max(0, 1 - r - g - b)  // peak weight
+
+                    px[i]   = Math.min(255, lowR * r + midR * g + hiR * b + pkR * pk) | 0
+                    px[i+1] = Math.min(255, lowG * r + midG * g + hiG * b + pkG * pk) | 0
+                    px[i+2] = Math.min(255, lowB * r + midB * g + hiB * b + pkB * pk) | 0
+                    px[i+3] = 255
+                }
+
+                ctx.putImageData(imgData, 0, 0)
+                const tex = new THREE.CanvasTexture(cv)
                 tex.colorSpace = THREE.SRGBColorSpace
                 tex.wrapS = THREE.ClampToEdgeWrapping
                 tex.wrapT = THREE.ClampToEdgeWrapping
                 groundMat.map = tex
-                groundMat.color.set(0xffffff) // let texture color through
+                groundMat.color.set(0xffffff)
                 groundMat.needsUpdate = true
                 URL.revokeObjectURL(splatImg.src)
-                console.log('[Landscaper] Splatmap texture applied')
+                console.log(`[Landscaper] Splatmap composited (${biome} palette, ${cv.width}x${cv.height})`)
             }
             splatImg.src = URL.createObjectURL(splatBlob)
         } catch (e) {
@@ -1048,7 +1135,22 @@ async function loadRealTerrain(terrainPayload: any): Promise<void> {
 // POSTMESSAGE BRIDGE (only when embedded in World)
 // ============================================================================
 
+const terrainLoadingEl = document.getElementById('terrain-loading')
+const terrainLoadingMsg = document.getElementById('terrain-loading-msg')
+
+function showTerrainLoading(msg: string): void {
+    if (terrainLoadingMsg) terrainLoadingMsg.textContent = msg
+    terrainLoadingEl?.classList.add('visible')
+}
+
+function hideTerrainLoading(): void {
+    terrainLoadingEl?.classList.remove('visible')
+}
+
 function setupPostMessageBridge(): void {
+    // Show loading indicator — we're embedded and waiting for World to send terrain
+    showTerrainLoading('Waiting for terrain from World...')
+
     window.addEventListener('message', (event: MessageEvent) => {
         let msg: any
         try {
@@ -1062,11 +1164,17 @@ function setupPostMessageBridge(): void {
                 console.log('[Landscaper] Received context from World:', msg.payload)
                 worldContext = msg.payload as WorldContext
                 updateDrawerContext()
+                showTerrainLoading(`Loading terrain for ${worldContext.instanceName || 'instance'}...`)
                 break
             case 'terrain-data':
                 console.log('[Landscaper] Received terrain data from World')
-                loadRealTerrain(msg.payload).catch(err => {
+                showTerrainLoading('Decoding terrain...')
+                loadRealTerrain(msg.payload).then(() => {
+                    hideTerrainLoading()
+                }).catch(err => {
                     console.error('[Landscaper] Failed to load terrain:', err)
+                    showTerrainLoading('Terrain load failed — using default')
+                    setTimeout(hideTerrainLoading, 4000)
                 })
                 break
         }
@@ -1139,7 +1247,7 @@ btnSaveWorld?.addEventListener('click', () => {
     window.parent.postMessage(JSON.stringify({
         source: 'blackbox-landscaper',
         type: 'save-manifest',
-        payload: { manifest },
+        payload: manifest,
     }), '*')
 
     const name = worldContext.instanceName || worldContext.instanceId

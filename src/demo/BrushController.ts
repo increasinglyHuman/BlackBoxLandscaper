@@ -320,6 +320,7 @@ export class BrushController {
 
             output.object.userData = {
                 speciesId: species.id,
+                seed,
                 triangleCount: output.triangleCount,
             }
 
