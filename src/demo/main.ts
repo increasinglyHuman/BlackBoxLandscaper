@@ -863,7 +863,7 @@ function parseUrlContext(): void {
  * Returns normalized 0-1 values scaled by elevation.
  */
 function decodePNGHeightmap(
-    base64Data: string, elevation: number,
+    base64Data: string, minHeight: number, maxHeight: number,
 ): Promise<{ heights: Float32Array; width: number; height: number }> {
     return new Promise((resolve, reject) => {
         const img = new Image()
@@ -887,16 +887,19 @@ function decodePNGHeightmap(
                 }
             }
 
-            console.log(`[Landscaper] PNG heightmap: ${img.width}x${img.height}, ${is16Bit ? '16-bit RG' : '8-bit grayscale'}, elevation=${elevation}`)
+            const range = maxHeight - minHeight
+            console.log(`[Landscaper] PNG heightmap: ${img.width}x${img.height}, ${is16Bit ? '16-bit RG' : '8-bit grayscale'}, height range: ${minHeight.toFixed(1)}–${maxHeight.toFixed(1)}m`)
 
             for (let i = 0; i < heights.length; i++) {
+                let normalized: number
                 if (is16Bit) {
                     const hi = imageData.data[i * 4]
                     const lo = imageData.data[i * 4 + 1]
-                    heights[i] = ((hi << 8) | lo) / 65535.0 * elevation
+                    normalized = ((hi << 8) | lo) / 65535.0
                 } else {
-                    heights[i] = imageData.data[i * 4] / 255.0 * elevation
+                    normalized = imageData.data[i * 4] / 255.0
                 }
+                heights[i] = minHeight + normalized * range
             }
 
             URL.revokeObjectURL(img.src)
@@ -953,11 +956,21 @@ async function loadRealTerrain(terrainPayload: any): Promise<void> {
 
     if (isPNG) {
         // BBT format: base64-encoded PNG heightmap
+        // Match BBTLoader's dual-mode height detection (ADR-018):
+        //   heightRange.max > 1.5 → world-space (BBT files): use min..max directly
+        //   heightRange.max <= 1.5 → normalized (NEXUS): scale by elevation ceiling
+        const heightRange = terrainData.stats?.heightRange
         const elevation = terrainData.terrain?.elevation
-            || terrainData.elevation
-            || terrainData.stats?.heightRange?.max
-            || 50
-        const decoded = await decodePNGHeightmap(dataStr, elevation)
+            || terrainData.elevation || 50
+
+        let minHeight = 0
+        let maxHeight = elevation
+        if (heightRange && heightRange.max > 1.5) {
+            minHeight = heightRange.min ?? 0
+            maxHeight = heightRange.max
+        }
+
+        const decoded = await decodePNGHeightmap(dataStr, minHeight, maxHeight)
         heights = decoded.heights
         cols = decoded.width
         rows = decoded.height
